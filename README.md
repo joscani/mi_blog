@@ -1,2 +1,2 @@
-# mi_blog
-Dónde voy a ir dejando mis posts
+# Blog
+En este repositorio voy a ir dejando los posts que se me vayan ocurriendo.
