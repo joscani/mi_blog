@@ -41,6 +41,9 @@ theme = "hyde-hyde"
     # Table of contents
     #toc = none, "hugo", or "tocbot"
 
+[permalinks]
+    post = "/:year/:month/:day/:slug/"
+
 ## Social Accounts
 [params.social]
     github = "joscani"
@@ -56,9 +59,9 @@ theme = "hyde-hyde"
 
 ## Main Menu
 [[menu.main]]
-    name = "Posts"
+    name = "Post"
     weight = 100
-    identifier = "posts"
+    identifier = "post"
     url = "/post/"
 [[menu.main]]
     name = "Portfolio"
