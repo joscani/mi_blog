@@ -1,13 +1,11 @@
-{{ define "header" }}
-    {{ partial "page-single/variables-init.html" . }}
+{{ define "header" -}}
     {{ partial "header.html" . }}
-{{ end }}
+{{- end -}}
 
-{{ define "content" }}
-    {{ partial "page-single/content.html" . }}
-{{ end }}
+{{ define "content" -}}
+    {{ partial "content_single.html" . }}
+{{- end -}}
 
-{{ define "footer" }}
-    {{ partial "page-single/footer.html" . }}
-    {{ partial "page-single/variables-deinit.html" . }}
-{{ end }}
+{{ define "footer" -}}
+    {{ partial "commenting.html" . }}
+{{- end -}}

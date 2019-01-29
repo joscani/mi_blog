@@ -1,58 +1,41 @@
 ## Basic Configuration
-baseurl = "https://example.com/"
-languageCode = "en"
+baseurl = "https://joscani.netlify.com/"
+languageCode = "es"
 
-title = "Title"
 theme = "hyde-hyde"
+
+ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
 
 ## Hugo Built-in Features
 # disqusShortname = "your-disqus-shortname"
 # googleAnalytics = "your-google-analytics-id"
 # enableRobotsTXT = true
 
-# summarylength = 30
-
-#paginate = 5
-
 ## Site Settings
 [params]
-    author = "Author"
-    title = "Title"
-    # description = "..."
-    authorimage = "/img/hugo.png"
-    dateformat = "Jan 2, 2006"
-
-    # sidebar, copyright & license
-    copyright = "htr3n"
-    license = "CC BY-SA 4.0"
-    licenseURL = "https://creativecommons.org/licenses/by-sa/4.0"
-    showBuiltWith = true
-
-    # https://highlightjs.org
+    author = "Muestrear no es pecado"
+    title = "SevillaR"
+    description = "Blog sobre estadística y análisis de datos"
+    authorimage = "/img/profile_3.png"
+    dateformat = "2 Jan 2006"
     highlightjs = true
-    highlightjsstyle = "github"
-    
-    # please choose either GraphComment or Disqus or Utterances
-    #GraphCommentId = "..."
-    #UtterancesRepo = "..." # https://utteranc.es/
-    #UtterancesIssueTerm = "..." # pathname, url, title, og:title
-    #UtterancesTheme = "..." # github-light or github-dark
-
-    # Table of contents
-    #toc = none, "hugo", or "tocbot"
+    # highlightjsstyle = "github"
+    # please choose either GraphComment or Disqus
+    # GraphCommentId = "your-graph-comment-id"
 
 ## Social Accounts
 [params.social]
-    github = "<username>"
-    instagram = "<username>"
-    xing = "<username>"
-    linkedin = "<username>"
-    twitter = "<username>"
-    facebook = "<username>"
-    stackoverflow = "<username>"
-    telegram = "<username>"
-    email = "your-email@example.com"
-    # gravatar = "your-email@example.com"
+    github = "SevillaR"
+    # instagram = "<username>"
+    # xing = "<username>"
+    # linkedin = "<username>"
+    twitter = "_SevillaR"
+    # facebook = "<username>"
+    # stackoverflow = "<username>"
+    email = "SevillaRUG@gmail.com"
+    # forum = "https://groups.google.com/forum/#!forum/sevillarusers"
+    # meetup = "https://www.meetup.com/es-ES/Sevilla-R-users/"
+
 
 ## Main Menu
 [[menu.main]]
@@ -61,12 +44,7 @@ theme = "hyde-hyde"
     identifier = "posts"
     url = "/posts/"
 [[menu.main]]
-    name = "Portfolio"
-    identifier = "portfolio"
-    weight = 200
-    url = "/portfolio/"
-[[menu.main]]
     name = "About"
     identifier = "about"
-    weight = 300
+    weight = 200
     url = "/about/"

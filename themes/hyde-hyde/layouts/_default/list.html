@@ -1,11 +1,10 @@
-{{ define "header" }}
+{{ define "header" -}}
     {{ partial "header.html" . }}
-{{ end }}
+{{- end -}}
 
-{{ define "content" }}
-    {{ partial "page-list/content.html" . }}
-{{ end }}
+{{ define "content" -}}
+    {{ partial "content_list.html" . }}
+{{- end -}}
 
-{{ define "footer" }}
-    {{ partial "page-list/footer.html" . }}
-{{ end }}
+{{ define "footer" -}}
+{{- end }}
