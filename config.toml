@@ -25,14 +25,14 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
 
 ## Social Accounts
 [params.social]
-    github = "SevillaR"
+    github = "joscani"
     # instagram = "<username>"
     # xing = "<username>"
     # linkedin = "<username>"
-    twitter = "_SevillaR"
+    twitter = "joscani"
     # facebook = "<username>"
     # stackoverflow = "<username>"
-    email = "SevillaRUG@gmail.com"
+    email = "canadasreche@gmail.com"
     # forum = "https://groups.google.com/forum/#!forum/sevillarusers"
     # meetup = "https://www.meetup.com/es-ES/Sevilla-R-users/"
 
