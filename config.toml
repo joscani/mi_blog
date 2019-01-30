@@ -4,8 +4,12 @@ title = "Muestrear no es pecado"
 theme = "blackburn"
 author = "José Luis Cañadas Reche"
 #copyright = "&copy; 2016. All rights reserved."
+ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
 canonifyurls = true
 paginate = 10
+
+[permalinks]
+post = "/:year/:month/:day/:slug/"
 
 [indexes]
   tag = "tags"
