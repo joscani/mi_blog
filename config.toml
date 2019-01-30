@@ -1,39 +1,64 @@
 baseurl = "https://joscani.netlify.com/"
 languageCode = "es"
 title = "Muestrear no es pecado"
-theme = "hugo-lithium"
-googleAnalytics = ""
-disqusShortname = ""
-ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
+theme = "blackburn"
+author = "José Luis Cañadas Reche"
+#copyright = "&copy; 2016. All rights reserved."
+canonifyurls = true
+paginate = 10
 
-[permalinks]
-    post = "/:year/:month/:day/:slug/"
-
-[[menu.main]]
-    name = "About"
-    url = "/about/"
-[[menu.main]]
-    name = "GitHub"
-    url = "https://github.com/joscani"
-[[menu.main]]
-    name = "Twitter"
-    url = "https://twitter.com/joscani"
+[indexes]
+  tag = "tags"
+  topic = "topics"
 
 [params]
-    description = "Joscani's blog"
-
-    # options for highlight.js (version, additional languages, and theme)
-    highlightjsVersion = "9.12.0"
-    highlightjsCDN = "//cdnjs.cloudflare.com/ajax/libs"
-    highlightjsLang = ["r", "yaml","scala","python"]
-    highlightjsTheme = "github"
-
-    MathJaxCDN = "//cdnjs.cloudflare.com/ajax/libs"
-    MathJaxVersion = "2.7.5"
-
+  # Shown in the home page
+  subtitle = "Estadística, ciencia de datos, big data, cosas varias"
+  brand = ""
+  googleAnalytics = "Your Google Analytics tracking ID"
+  # disqus = "joscani"
+  # CSS name for highlight.js
+  highlightjs = "androidstudio"
+  dateFormat = "02 Jan 2006, 15:04"
     [params.logo]
     url = "joscani.png"
     width = 50
     height = 50
     alt = "Logo"
+[menu]
+  # Shown in the side menu.
+  [[menu.main]]
+    name = "Home"
+    pre = "<i class='fa fa-home fa-fw'></i>"
+    weight = 1
+    identifier = "home"
+    url = "/"
+  [[menu.main]]
+    name = "Posts"
+    pre = "<i class='fa fa-list fa-fw'></i>"
+    weight = 2
+    identifier = "post"
+    url = "/post/"
+  [[menu.main]]
+    name = "About"
+    pre = "<i class='fa fa-user fa-fw'></i>"
+    weight = 3
+    identifier = "about"
+    url = "/about/"
+  [[menu.main]]
+    name = "Contact"
+    pre = "<i class='fa fa-phone fa-fw'></i>"
+    weight = 4
+    url = "/contact/"
+
+[social]
+  # Link your social networking accouns to the side menu
+  # by entering your username or ID.
+  twitter = "joscani"
+  #facebook = "*"
+  #instagram = "*"
+  github = "joscani"
+  #stackoverflow = "*"
+  linkedin = "joscani"
+  
 

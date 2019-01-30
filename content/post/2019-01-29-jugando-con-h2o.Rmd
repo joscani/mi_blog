@@ -15,19 +15,6 @@ output:
     highlight: pygments
 ---
 
-<style type="text/css">
-
-body, td {
-   font-size: 14px;
-}
-code.r{
-  font-size: 14px;
-}
-pre {
-  font-size: 14px
-}
-</style>
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
