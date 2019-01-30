@@ -33,12 +33,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Qué es h2o
-Aparte de lo que todos entendemos por h2o, h2o también es una empresa, y tiene algunos productos útiles para aquellos que nos dedicamos a lo que se ahora se llama "ciencia de datos". Más info [aquí](https://www.h2o.ai/download/#h2o)
+Aparte de lo que todos entendemos por h2o, h2o también es una empresa, y tiene algunos productos útiles para aquellos que nos dedicamos a lo que ahora se llama "ciencia de datos". Más info [aquí](https://www.h2o.ai/download/#h2o)
 
 
 ##  h2o en R
 
-El tema es que h2o tiene apis para usarlo con R y con python, hadoop o usar con maven. [download](http://h2o-release.s3.amazonaws.com/h2o/rel-xu/3/index.html)
+El tema es que h2o tiene apis para usarlo con R, python, hadoop o maven. [info](http://h2o-release.s3.amazonaws.com/h2o/rel-xu/3/index.html)
 
 Veamos un pequeño ejemplo en R. En primer lugar instalamos h2o según las instrucciones. Lo que hace es bajarnos el paquete de R y también el artefacto que tiene h2o propiamente dicho. Se me olvidaba, h2o está hecho en Java.
 

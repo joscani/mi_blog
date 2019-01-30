@@ -1,0 +1,273 @@
+---
+title: Jugando con h2o
+author: jlcr
+date: '2019-01-29'
+slug: jugando-con-h2o
+categories:
+  - R
+  - h2o
+  - machine learning
+tags:
+  - h2o
+  - producción
+output:
+  html_document:
+    highlight: pygments
+---
+
+
+
+<div id="que-es-h2o" class="section level2">
+<h2>Qué es h2o</h2>
+<p>Aparte de lo que todos entendemos por h2o, h2o también es una empresa, y tiene algunos productos útiles para aquellos que nos dedicamos a lo que ahora se llama “ciencia de datos”. Más info <a href="https://www.h2o.ai/download/#h2o">aquí</a></p>
+</div>
+<div id="h2o-en-r" class="section level2">
+<h2>h2o en R</h2>
+<p>El tema es que h2o tiene apis para usarlo con R, python, hadoop o maven. <a href="http://h2o-release.s3.amazonaws.com/h2o/rel-xu/3/index.html">info</a></p>
+<p>Veamos un pequeño ejemplo en R. En primer lugar instalamos h2o según las instrucciones. Lo que hace es bajarnos el paquete de R y también el artefacto que tiene h2o propiamente dicho. Se me olvidaba, h2o está hecho en Java.</p>
+<pre class="r"><code># instalar 
+# The following two commands remove any previously installed H2O packages for R.
+if (&quot;package:h2o&quot; %in% search()) { detach(&quot;package:h2o&quot;, unload=TRUE) }
+if (&quot;h2o&quot; %in% rownames(installed.packages())) { remove.packages(&quot;h2o&quot;) }
+
+# Next, we download packages that H2O depends on.
+pkgs &lt;- c(&quot;RCurl&quot;,&quot;jsonlite&quot;)
+for (pkg in pkgs) {
+if (! (pkg %in% rownames(installed.packages()))) { install.packages(pkg) }
+}
+
+# Now we download, install and initialize the H2O package for R.
+install.packages(&quot;h2o&quot;, type=&quot;source&quot;, repos=&quot;http://h2o-release.s3.amazonaws.com/h2o/rel-xu/3/R&quot;)</code></pre>
+<p>Levantamos el cluster de h2o, nótese que lo hago en local, pero también se puede instalar h2o y usarlo desde R en un cluster de máquinas.</p>
+<pre class="r"><code>library(h2o)
+h2o.init(nthreads = 4, max_mem_size = &quot;7G&quot;)</code></pre>
+<p>Nos levanta también un UI muy bonito ( y que yo apenas uso) en el puerto 54321</p>
+<p><img src="/post/2019-01-29-jugando-con-h2o_files/H2O%20Flow.png" style="width:90.0%" /></p>
+</div>
+<div id="modelo-de-juguete" class="section level2">
+<h2>Modelo de juguete</h2>
+<p>Vamos a hacer un modelo usando gradient boosting, que parece que no se usa otra cosa últimamente para modelar la altura en función del peso y del año de nacimiento de personajes de starwars.</p>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ──────────────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ✔ ggplot2 3.1.0     ✔ purrr   0.3.0
+## ✔ tibble  2.0.1     ✔ dplyr   0.7.8
+## ✔ tidyr   0.8.2     ✔ stringr 1.3.1
+## ✔ readr   1.3.1     ✔ forcats 0.3.0</code></pre>
+<pre><code>## ── Conflicts ─────────────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>df &lt;- starwars %&gt;% select(mass,height, hair_color,birth_year)</code></pre>
+<p>Subimos los datos a h2o, a partir de esto el resto los cálculos los hace h2o y no R.</p>
+<pre class="r"><code># Convertimos a datos de h2o
+starwars_hframe &lt;- as.h2o(df, destination_frame = &quot;starwars_hframe&quot;)</code></pre>
+<pre><code>## 
+  |                                                                       
+  |                                                                 |   0%
+  |                                                                       
+  |=================================================================| 100%</code></pre>
+<pre class="r"><code># train test 70 / 30
+
+partition &lt;- h2o.splitFrame(starwars_hframe, ratios = c(0.7), seed = 155)
+
+# guardamos el conjunto de test en un csv para utlizarlo posteriormente.
+
+write_csv(as.data.frame(partition[[2]]), path = &quot;test.csv&quot;)</code></pre>
+<p>Entrenamos el modelo y vemos algunas métricas</p>
+<pre class="r"><code>x = c(&quot;mass&quot;,&quot;birth_year&quot;)
+y = &quot;height&quot;
+mod_1 &lt;- h2o.gbm(
+  model_id = &quot;mi_gbm&quot;,
+  x = x,
+  y = y,
+  training_frame = partition[[1]])</code></pre>
+<pre><code>## 
+  |                                                                       
+  |                                                                 |   0%
+  |                                                                       
+  |=================================================================| 100%</code></pre>
+<pre class="r"><code>summary(mod_1)</code></pre>
+<pre><code>## Model Details:
+## ==============
+## 
+## H2ORegressionModel: gbm
+## Model Key:  mi_gbm 
+## Model Summary: 
+##   number_of_trees number_of_internal_trees model_size_in_bytes min_depth
+## 1              50                       50                5457         2
+##   max_depth mean_depth min_leaves max_leaves mean_leaves
+## 1         4    3.06000          4          5     4.14000
+## 
+## H2ORegressionMetrics: gbm
+## ** Reported on training data. **
+## 
+## MSE:  467.436
+## RMSE:  21.62027
+## MAE:  14.87359
+## RMSLE:  0.1437985
+## Mean Residual Deviance :  467.436
+## 
+## 
+## 
+## 
+## 
+## Scoring History: 
+##             timestamp   duration number_of_trees training_rmse
+## 1 2019-01-30 22:54:59  0.058 sec               0      35.22147
+## 2 2019-01-30 22:54:59  0.247 sec               1      33.70794
+## 3 2019-01-30 22:54:59  0.271 sec               2      32.39930
+## 4 2019-01-30 22:54:59  0.282 sec               3      31.32345
+## 5 2019-01-30 22:54:59  0.293 sec               4      30.39768
+##   training_mae training_deviance
+## 1     23.34364        1240.55202
+## 2     22.17922        1136.22507
+## 3     21.25695        1049.71432
+## 4     20.58444         981.15835
+## 5     20.12695         924.01906
+## 
+## ---
+##              timestamp   duration number_of_trees training_rmse
+## 46 2019-01-30 22:54:59  0.706 sec              45      21.99193
+## 47 2019-01-30 22:54:59  0.712 sec              46      21.91429
+## 48 2019-01-30 22:54:59  0.719 sec              47      21.82580
+## 49 2019-01-30 22:54:59  0.724 sec              48      21.75770
+## 50 2019-01-30 22:54:59  0.731 sec              49      21.69123
+## 51 2019-01-30 22:54:59  0.738 sec              50      21.62027
+##    training_mae training_deviance
+## 46     15.16286         483.64494
+## 47     15.11539         480.23606
+## 48     15.03050         476.36561
+## 49     14.98415         473.39766
+## 50     14.91394         470.50961
+## 51     14.87359         467.43601
+## 
+## Variable Importances: (Extract with `h2o.varimp`) 
+## =================================================
+## 
+## Variable Importances: 
+##     variable relative_importance scaled_importance percentage
+## 1       mass       218099.125000          1.000000   0.947798
+## 2 birth_year        12012.344727          0.055077   0.052202</code></pre>
+<pre class="r"><code>mod_1 %&gt;% h2o.performance(newdata = partition[[2]])</code></pre>
+<pre><code>## H2ORegressionMetrics: gbm
+## 
+## MSE:  772.518
+## RMSE:  27.79421
+## MAE:  21.01117
+## RMSLE:  0.1946992
+## Mean Residual Deviance :  772.518</code></pre>
+<p>En la UI localhost:54321 se muestra todo esto de manera más “bonita”.</p>
+<p><img src="/post/2019-01-29-jugando-con-h2o_files/h2o_scoring_simple.png" style="width:90.0%" /></p>
+<p><strong>Predicción del modelo</strong></p>
+<p>Pues muy fácilmente</p>
+<pre class="r"><code>mod_1 %&gt;% h2o.predict(partition[[2]])</code></pre>
+<pre><code>## 
+  |                                                                       
+  |                                                                 |   0%
+  |                                                                       
+  |=================================================================| 100%</code></pre>
+<pre><code>##    predict
+## 1 201.8132
+## 2 117.8270
+## 3 177.1644
+## 4 175.6902
+## 5 176.2006
+## 6 201.8132
+## 
+## [26 rows x 1 column]</code></pre>
+<p>Todo esto está muy bien, pero diréis, ¿cómo pongo esto en un entorno productivo?</p>
+</div>
+<div id="productivizar-modelos-h2o" class="section level2">
+<h2>Productivizar modelos h2o</h2>
+<p>H2O permite exportar los modelos como una cosa que ellos llaman <a href="http://docs.h2o.ai/h2o/latest-stable/h2o-docs/productionizing.html">MOJO</a>. Básicamente lo que se generan son dos archivos, un artefacto <code>.jar</code> que tiene las librerías, clases y métodos de java necesarios para predecir y un archivo <code>.zip</code> dónde está las especificaciones del modelo, en este caso los árboles.</p>
+<p>Con estos dos ficheros ya se puede utilizar ese modelo para predecir en cualquier sitio dónde haya JAVA e incluso crear <a href="http://docs.h2o.ai/h2o-tutorials/latest-stable/tutorials/hive_udf_template/hive_udf_mojo_template/index.html">UDFS en HIVE</a> y , por supuesto también se pueden utilizar con spark.</p>
+<div id="exportar-modelo" class="section level3">
+<h3>Exportar modelo</h3>
+<p>Descargar el archivo zip y el jar es bastante sencillo.</p>
+<pre class="r"><code>h2o.download_mojo(mod_1, get_genmodel_jar = TRUE,
+                  genmodel_name = &quot;mojo_jar.jar&quot;)</code></pre>
+<pre><code>## [1] &quot;mi_gbm.zip&quot;</code></pre>
+<p>Paramos h2o.</p>
+<pre class="r"><code>h2o.shutdown(prompt = FALSE)</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+</div>
+</div>
+<div id="predecir-en-spark" class="section level2">
+<h2>Predecir en spark</h2>
+<p>Ahora podemos usar el jar y el zip para productivizar nuestro modelo en un cluster de spark sin necesidad de tener h2o instalado.</p>
+<p>Lanzamos un spark-shell añadiendo el .jar para que lo distribuya.</p>
+<pre class="bash"><code># lo lanzo en mi spark instalado en local pero también sirve en un cluster con yarn
+~/spark/spark-2.4.0-bin-hadoop2.7/bin/spark-shell --conf spark.driver.memory=&quot;2g&quot; --conf spark.executor.memory=&quot;2g&quot; --conf spark.executor.instances=2 --conf spark.executor.cores=2 --jars mojo_jar.jar
+</code></pre>
+<p>Pues ya podemos predecir nuestro modelo en spark de la siguiente forma</p>
+<pre class="scala"><code>import _root_.hex.genmodel.GenModel
+import _root_.hex.genmodel.easy.{EasyPredictModelWrapper, RowData}
+import _root_.hex.genmodel.easy.prediction
+import _root_.hex.genmodel.MojoModel
+import _root_.hex.genmodel.easy.RowData
+import org.apache.spark.sql.Column
+
+// cargar mi modelo 
+val modelPath = &quot;mi_gbm.zip&quot;
+// Cargar datos de test para predecir
+val dataPath = &quot;test.csv&quot;
+
+// Import data
+val dfStarWars = spark.read.option(&quot;header&quot;, &quot;true&quot;).
+csv(dataPath)
+// Import MOJO model
+val mojo = MojoModel.load(modelPath)</code></pre>
+<p>Instanciamos la clase <code>EasyPredictModelWrapper</code></p>
+<pre class="scala"><code>
+val easyModel = new EasyPredictModelWrapper( 
+                new EasyPredictModelWrapper.Config().
+                setModel(mojo).
+                setConvertUnknownCategoricalLevelsToNa(true).
+                setConvertInvalidNumbersToNa(true))
+</code></pre>
+<p>El modelo en MOJO y las clases que ha generado h2o necesitan que pasemos de SparkDataframe a rowData. Una forma fácil de hacerlo es hacer un map sobre todas las columnas. Una vez convertida al formato adecuado, dentro del map se utiliza el método <code>predictRegression</code> para obtener la predicción del modelo y con <code>.toDF</code> lo pasamos a sparkdataframe. Ojo, EasyPredictModelWrapper usa las variables como String, pero internamente ya sabe si son numéricas o no.</p>
+<pre class="scala"><code>// -------------
+
+// Convertir  todas las columnas a rowdata
+// -------------
+
+val header = dfStarWars.columns
+
+val dfScore = dfStarWars.map {
+  x =&gt;
+    val r = new RowData
+    header.indices.foreach(idx =&gt; r.put(header(idx), x.getAs[String](idx) ))
+    val score = easyModel.predictRegression(r).value 
+   (score)
+  }.toDF(&quot;predict&quot;)
+  </code></pre>
+<p>Y lo que obtenemos es un sparkdataframe que podremos guardar en una tabla de hive o seguir utilizando dentro de la sesión de spark</p>
+<p>Comprobamos que la predicción es la misma de antes.</p>
+<pre class="scala"><code>dfScore.show()
++------------------+
+|           predict|
++------------------+
+|201.81315093098914|
+|117.82702476608341|
+| 177.1644296299923|
+|175.69017681556528|
+|  176.200564921673|
+|201.81315093098914|
+|176.56103480311816|
+|179.59632814752644|
+|118.87230888831203|
+| 182.1062176607806|
+|172.80586874375825|
+|179.59632814752644|
+|179.59632814752644|
+|202.99927356171196|
+|149.69601927029674|
+|179.59632814752644|
+|150.02756194102352|
+| 183.5801466245461|
+|181.64131501207834|
+|179.59632814752644|
++------------------+
+only showing top 20 rows
+</code></pre>
+<p>El siguiente paso sería en vez de ejecutar un spark-shell convertir todo en una aplicación de Spark, pero para eso necesitaré a mis queridos “ingenazis”.</p>
+</div>
