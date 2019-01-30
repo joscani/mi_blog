@@ -1,0 +1,255 @@
+---
+title: Jugando con h2o
+author: jlcr
+date: '2019-01-29'
+slug: jugando-con-h2o
+categories:
+  - R
+  - h2o
+  - machine learning
+tags:
+  - h2o
+  - producción
+output:
+  html_document:
+    highlight: pygments
+---
+
+<style type="text/css">
+
+body, td {
+   font-size: 14px;
+}
+code.r{
+  font-size: 14px;
+}
+pre {
+  font-size: 14px
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Qué es h2o
+Aparte de lo que todos entendemos por h2o, h2o también es una empresa, y tiene algunos productos útiles para aquellos que nos dedicamos a lo que se ahora se llama "ciencia de datos". Más info [aquí](https://www.h2o.ai/download/#h2o)
+
+
+##  h2o en R
+
+El tema es que h2o tiene apis para usarlo con R y con python, hadoop o usar con maven. [download](http://h2o-release.s3.amazonaws.com/h2o/rel-xu/3/index.html)
+
+Veamos un pequeño ejemplo en R. En primer lugar instalamos h2o según las instrucciones. Lo que hace es bajarnos el paquete de R y también el artefacto que tiene h2o propiamente dicho. Se me olvidaba, h2o está hecho en Java.
+
+
+```{r, eval=FALSE}
+# instalar 
+# The following two commands remove any previously installed H2O packages for R.
+if ("package:h2o" %in% search()) { detach("package:h2o", unload=TRUE) }
+if ("h2o" %in% rownames(installed.packages())) { remove.packages("h2o") }
+
+# Next, we download packages that H2O depends on.
+pkgs <- c("RCurl","jsonlite")
+for (pkg in pkgs) {
+if (! (pkg %in% rownames(installed.packages()))) { install.packages(pkg) }
+}
+
+# Now we download, install and initialize the H2O package for R.
+install.packages("h2o", type="source", repos="http://h2o-release.s3.amazonaws.com/h2o/rel-xu/3/R")
+```
+
+Levantamos el cluster de h2o, nótese que lo hago en local, pero también se puede instalar h2o y usarlo desde R en un cluster de máquinas.
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+library(h2o)
+h2o.init(nthreads = 4, max_mem_size = "7G")
+```
+
+Nos levanta también un UI muy bonito ( y que yo apenas uso) en el puerto 54321
+
+![](/post/2019-01-29-jugando-con-h2o_files/H2O Flow.png){width=90%}
+
+
+
+## Modelo de juguete
+
+Vamos a hacer un modelo usando gradient boosting, que parece que no se usa otra cosa últimamente para modelar la altura en función del peso y del año de nacimiento de personajes de starwars. 
+
+```{r}
+library(tidyverse)
+df <- starwars %>% select(mass,height, hair_color,birth_year)
+```
+
+Subimos los datos a h2o, a partir de esto el resto los cálculos los hace h2o y no R.
+
+```{r}
+# Convertimos a datos de h2o
+starwars_hframe <- as.h2o(df, destination_frame = "starwars_hframe")
+
+# train test 70 / 30
+
+partition <- h2o.splitFrame(starwars_hframe, ratios = c(0.7), seed = 155)
+
+# guardamos el conjunto de test en un csv para utlizarlo posteriormente.
+
+write_csv(as.data.frame(partition[[2]]), path = "test.csv")
+
+```
+
+Entrenamos el modelo y vemos algunas métricas
+
+```{r}
+x = c("mass","birth_year")
+y = "height"
+mod_1 <- h2o.gbm(
+  model_id = "mi_gbm",
+  x = x,
+  y = y,
+  training_frame = partition[[1]])
+
+summary(mod_1)
+
+mod_1 %>% h2o.performance(newdata = partition[[2]])
+```
+
+En la UI localhost:54321 se muestra todo esto de manera más "bonita". 
+
+![](/post/2019-01-29-jugando-con-h2o_files/h2o_scoring_simple.png){width=90%}
+
+**Predicción del modelo**
+
+Pues muy fácilmente
+
+```{r}
+mod_1 %>% h2o.predict(partition[[2]])
+```
+
+Todo esto está muy bien, pero diréis, ¿cómo pongo esto en un entorno productivo?
+
+## Productivizar modelos h2o
+
+H2O permite exportar los modelos como una cosa que ellos llaman [MOJO](http://docs.h2o.ai/h2o/latest-stable/h2o-docs/productionizing.html). Básicamente lo que se generan son dos archivos, un artefacto `.jar` que tiene las librerías, clases y métodos de java necesarios para predecir y un archivo `.zip` dónde está las especificaciones del modelo, en este caso los árboles.
+
+Con estos dos ficheros ya se puede utilizar ese modelo para predecir en cualquier sitio dónde haya JAVA e incluso crear [UDFS en HIVE](http://docs.h2o.ai/h2o-tutorials/latest-stable/tutorials/hive_udf_template/hive_udf_mojo_template/index.html) y , por supuesto también se pueden utilizar con spark.
+
+### Exportar modelo
+
+Descargar el archivo zip y el jar es bastante sencillo.
+
+```{r}
+h2o.download_mojo(mod_1, get_genmodel_jar = TRUE,
+                  genmodel_name = "mojo_jar.jar")
+```
+
+
+Paramos h2o.
+
+```{r}
+h2o.shutdown(prompt = FALSE)
+```
+
+## Predecir en spark
+
+Ahora podemos usar el jar y el zip para productivizar nuestro modelo en un cluster de spark sin necesidad de tener h2o instalado.
+
+Lanzamos un spark-shell añadiendo el .jar para que lo distribuya.
+
+```{bash, eval = FALSE}
+# lo lanzo en mi spark instalado en local pero también sirve en un cluster con yarn
+~/spark/spark-2.4.0-bin-hadoop2.7/bin/spark-shell --conf spark.driver.memory="2g" --conf spark.executor.memory="2g" --conf spark.executor.instances=2 --conf spark.executor.cores=2 --jars mojo_jar.jar
+
+```
+
+Pues ya podemos predecir  nuestro modelo en spark de la siguiente forma
+
+```scala
+import _root_.hex.genmodel.GenModel
+import _root_.hex.genmodel.easy.{EasyPredictModelWrapper, RowData}
+import _root_.hex.genmodel.easy.prediction
+import _root_.hex.genmodel.MojoModel
+import _root_.hex.genmodel.easy.RowData
+import org.apache.spark.sql.Column
+
+// cargar mi modelo 
+val modelPath = "mi_gbm.zip"
+// Cargar datos de test para predecir
+val dataPath = "test.csv"
+
+// Import data
+val dfStarWars = spark.read.option("header", "true").
+csv(dataPath)
+// Import MOJO model
+val mojo = MojoModel.load(modelPath)
+``` 
+
+Instanciamos la clase `EasyPredictModelWrapper`
+
+```scala
+
+val easyModel = new EasyPredictModelWrapper( 
+                new EasyPredictModelWrapper.Config().
+                setModel(mojo).
+                setConvertUnknownCategoricalLevelsToNa(true).
+                setConvertInvalidNumbersToNa(true))
+
+```
+
+
+El modelo en MOJO y las clases que ha generado h2o necesitan que pasemos de SparkDataframe a rowData. Una forma fácil de hacerlo es hacer un map sobre todas las columnas. Una vez convertida al formato adecuado, dentro del map se utiliza el método `predictRegression` para obtener la predicción del modelo y con `.toDF` lo pasamos a sparkdataframe. Ojo, EasyPredictModelWrapper usa las variables como String, pero internamente ya sabe si son numéricas o no. 
+
+```scala
+// -------------
+
+// Convertir  todas las columnas a rowdata
+// -------------
+
+val header = dfStarWars.columns
+
+val dfScore = dfStarWars.map {
+  x =>
+    val r = new RowData
+    header.indices.foreach(idx => r.put(header(idx), x.getAs[String](idx) ))
+    val score = easyModel.predictRegression(r).value 
+   (score)
+  }.toDF("predict")
+  
+```
+Y lo que obtenemos es un sparkdataframe que podremos guardar en una tabla de hive o seguir utilizando dentro de la sesión de spark
+
+Comprobamos que la predicción es la misma de antes.
+
+
+```scala
+dfScore.show()
++------------------+
+|           predict|
++------------------+
+|201.81315093098914|
+|117.82702476608341|
+| 177.1644296299923|
+|175.69017681556528|
+|  176.200564921673|
+|201.81315093098914|
+|176.56103480311816|
+|179.59632814752644|
+|118.87230888831203|
+| 182.1062176607806|
+|172.80586874375825|
+|179.59632814752644|
+|179.59632814752644|
+|202.99927356171196|
+|149.69601927029674|
+|179.59632814752644|
+|150.02756194102352|
+| 183.5801466245461|
+|181.64131501207834|
+|179.59632814752644|
++------------------+
+only showing top 20 rows
+
+```
+
+El siguiente paso sería en vez de ejecutar un spark-shell convertir todo en una aplicación de Spark, pero para eso necesitaré a mis queridos "ingenazis".
+
+
