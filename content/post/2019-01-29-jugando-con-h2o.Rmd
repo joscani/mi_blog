@@ -239,4 +239,3 @@ only showing top 20 rows
 
 El siguiente paso sería en vez de ejecutar un spark-shell convertir todo en una aplicación de Spark, pero para eso necesitaré a mis queridos "ingenazis".
 
-
