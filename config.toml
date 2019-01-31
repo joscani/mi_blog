@@ -7,7 +7,7 @@ author = "José Luis Cañadas Reche"
 ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
 canonifyurls = true
 paginate = 10
-relativeurls = true 
+relativeURLs = true
 
 
 [permalinks]
