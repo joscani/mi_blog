@@ -22,7 +22,7 @@ post = "/:year/:month/:day/:slug/"
   subtitle = "Estadística, ciencia de datos, big data, cosas varias"
   brand = ""
   googleAnalytics = "Your Google Analytics tracking ID"
-  disqusShortname = "joscani"
+  disqus = "joscani"
   # CSS name for highlight.js
   highlightjs = "androidstudio"
   dateFormat = "02 Jan 2006, 15:04"
