@@ -1,16 +1,14 @@
 ---
 title: Las nuevas hornadas
-author: ''
-date: '2019-02-01'
-slug: las-nuevas-hornadas
+author: 'jlcr'
+date: '2019-01-31'
 categories:
-  - estadística
   - ciencia de datos
+  - estadística
 tags:
   - estadística
   - tiempos modernos
-description: ''
-topics: []
+slug: las-nuevas-hornadas
 ---
 
 Por circunstancias de la vida estoy entrevistando a nuevas generaciones de científicos de datos y no dejo de constatar algunas cosas , enumero algunas.
