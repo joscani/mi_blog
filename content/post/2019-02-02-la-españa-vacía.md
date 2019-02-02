@@ -1,6 +1,6 @@
 ---
 title: La España vacía
-author: ''
+author: 'jlcr'
 date: '2019-02-02'
 categories:
   - vida rural
