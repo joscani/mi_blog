@@ -1,0 +1,197 @@
+---
+title: Partial pooling
+author: jlcr
+date: '2019-02-03'
+slug: partial-pooling
+categories:
+  - estadística
+tags:
+  - muestreo
+  - modelos mixtos
+description: ''
+topics: []
+---
+
+Voy a empezar una serie de entradas (no sé cuántas) sobre modelos mixtos, una de las cosas más chulas que hay en esto de la estadística. Yo ví la luz con el libro de uno de mis ídolos [Andrew Gelman](https://statmodeling.stat.columbia.edu/). El libro en cuestión se llama [Data Analysis Using Regression and Multilevel/Hierarchical Models](http://www.stat.columbia.edu/~gelman/arm/) y recomiendo su lectura encarecidamente.
+
+Para ejemplificar de qué va esto de los modelos mixtos vamos a ver un ejemplo del libro de Gelman. Se trata de estimar el efecto del tipo de suelo y del condado sobre la concentración de radon (más concretamente sobre el logaritmo neperiano del mismo), en el estado de Minnesota.
+
+
+Los datos se pueden obtener de la web del libro. 
+
+Importamos librerías
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lme4)
+```
+
+
+
+```{r, warning=FALSE, message=FALSE}
+srrs2 <- read_csv("/home/jose/Dropbox/Public/srrs2.dat")
+
+# Selecciono solo los datos de Minnesota, la concentración de radon "activity", el 
+# tipo de suelo 0 o 1 y el condado
+df_mn <- srrs2 %>%
+  filter(state == "MN") %>% 
+  select(activity, floor, county) %>%
+  mutate(y = log(if_else(activity == 0, 0.1, activity)))
+
+DT::datatable(df_mn)
+```
+
+
+## Modelo general *"pooled"*
+
+Estamos interesados en estudiar el efecto del tipo de suelo sobre la concentración de radon. Si no tenemos en cuenta que hay diferentes condados, podremos estimar el modelo como `y ~ floor`, esto es lo que se denomina el modelo *pooled* 
+
+```{r}
+lm_pooled <- lm(y ~ floor, data = df_mn)
+coef(lm_pooled)
+```
+
+Notese que al tomar `floor`  sólo los valores 0 y 1, los coeficiente del modelo lineal nos dan los valores medios del logaritmo de radon en los dos tipos de suelo.
+
+
+```{r}
+with(df_mn, tapply(y, floor, mean))
+```
+ El intercept del modelo se corresponde con la media de radon en los suelos de tipo 0 y el intercept del modelo más el coeficiente asociado a floor `1.327  - 0.613` nos da la media del logaritmo de radon en los suelos de tipo 1. Esta característica propia de los modelos lineales hacen que sean un framework más general que los t.test o los test de proporciones (si consideramos una regresión logística) y hace que estudiar los test de hipótesis casi carezca de sentido. Espero críticas de mis lectores estadísticos.
+ 
+ 
+ Gráficamente tendríamos esto
+ 
+```{r}
+# pongo un poco de ruido en floor para mejorar la visualización
+ggplot(df_mn, aes (x= jitter(floor, 0.1)  , y = y)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(y = "log(radon)", x = "floor")
+```
+ 
+
+## Modelo teniendo en cuenta los condados *"no pooled"*
+
+Podríamos pensar que la concentración de radon no sólo se ve afectada por el tipo de suelo, sino también por el condado dónde hemos tomado las mediciones. Un posible modelo sería considerar una regresión independiente en cada condado, esto sería un modelo *no pooled*, otro posible modelo *no pooled* sería considerar que el efecto del suelo es el mismo para todos los condados pero que el hacer mediciones en un condado o en otro tiene un efecto que modifica la media del logaritmo de radon.
+
+Hagamóslo
+
+```{r}
+# pongo  0 para tener un coeficiente de cada condado en vez de tener uno que sea la categoría de referencia y su efecto esté dentro del intercept
+lm_unpooled <- lm(y ~  0 + floor  + county, data = df_mn)
+
+```
+
+Veamos algunos coeficientes
+
+```{r}
+coef(lm_unpooled)[1:7]
+```
+
+
+Comparemos los ajustes de ambos modelos de manera gráfica, para eso nos construimos unos data.frames con los coeficientes de ambos modelos y los unimos a los atos
+
+```{r, warning=FALSE, message=FALSE}
+coef_pooled <- data.frame(
+  county = unique(df_mn$county),
+  intercept = coef(lm_pooled)[1],
+  coef = coef(lm_pooled)[-1],
+  modelo = "pooled"
+)
+coef_unpoled <- data.frame(
+  county = unique(df_mn$county),
+  intercept = coef(lm_unpooled)[-1],
+  coef = coef(lm_unpooled)[1],
+  modelo = "unpooled"
+)
+
+df_models <-
+  rbind(coef_pooled, coef_unpoled) %>% left_join(df_mn, by = "county")
+
+DT::datatable(df_models)
+
+```
+
+Y si pintamos los mismos 8 condados que ejemplifica Gelman en el libro
+
+```{r}
+condados_num <-  c(36, 1, 35, 21, 14, 71, 61, 70)
+p_model_comparison <-  df_models %>% 
+  filter(county %in% unique(county)[condados_num]) %>% 
+  ggplot(aes(x = jitter(floor, factor = 0.1), y = y)) + 
+  geom_point(size = rel(0.7)) +
+  geom_abline(aes(intercept = intercept, slope = coef, color = modelo))  +
+  facet_wrap(~county) +
+  labs(y = "log(radon)", x = "floor")
+p_model_comparison
+```
+
+Vemos un efecto curioso, por ejemplo en el condado LAC QUI PARLE que sólo tiene 3 medidas ambos modelos son muy distintos mientras en otros condados el ajuse de ambos modelos es similar. Ambos modelos tienen problemas, si nos  quedamos con el modelo `pooled` no tenemos en cuenta la particularidad en cada condado y si nos quedamos con el modelo `no pooled` la estimación en condados con pocas medidas no resulta creíble. 
+
+
+
+## Modelo mixto *"partial pooled"*
+
+Estos problemas se pueden resolver utilizando modelos mixtos (no voy a entrar en el detalle matemático) en dónde se realiza `partial pooling` de forma que, en nuestro ejemplo, para los condados con mayor número de observaciones se tiene más en cuenta la información de ese condado mientra que para los condados con menos observaciones se tiene más en cuenta la estimación general en todos los condados
+
+Este tipo de modelos se pueden ajustar con técnicas bayesianas, pero para este caso vamos a utilizar la librería `lme4` que los ajusta por máxima verosimilitud restringida.
+
+El modelo a ajustar sería el siguiente, dónde los efectos asociados a los condados se suponen que vienen de una distribución normal con varianza $\sigma_2$ 
+
+
+$y_i \sim \mathcal{N}(\beta_o + \beta_1 \cdot floor + \alpha_j \cdot county )$
+
+dónde 
+
+$\alpha_l \sim \mathcal{N}(0, \sigma^{2}_{j} ) \; j = 1 \ldots \; \text{n_counties}$
+
+por lo que tenemos sólo 2 parámetros a ajustar, los diferentes $\alpha_j$ se estiman usando el estimador BLUP Best Linear Unbiased Prediction que grosso modo es una media ponderada de la media del logaritmo de radon total y  la media en cada condado
+
+$$ \widehat{\alpha}_{j}^{county}\approx\left(\dfrac{\frac{n_{j}}{\sigma_{y}^{2}}\bar{y}_{j}+\frac{1}{\sigma_{county}^{2}}\bar{y}_{total}}{\frac{n_{j}}{\sigma_{y}^{2}}+\frac{1}{\sigma_{county}^{2}}}\right) $$
+
+Ajustamos el modelo con la librería `lme4`
+
+```{r}
+# consideramos
+lm_partial_pooled <- lmer(y ~ floor + (1 | county), data = df_mn)
+
+```
+Con la función `coef` extraemos el efecto aleatorio para cada condados y el coeficiente para `floor` común a todos los condados
+```{r}
+coef(lm_partial_pooled)
+```
+
+
+Unamos los coeficientes de los 3 modelos junto con los datos originales
+
+```{r, warning=FALSE, message=FALSE}
+coef_partial_pooling <-
+  data.frame(
+    county = rownames(coef(lm_partial_pooled)$county),
+    intercept = coef(lm_partial_pooled)$county[, 1],
+    coef = coef(lm_partial_pooled)$county[, 2],
+    modelo = "partial_pooling"
+  )
+
+df_models <-
+  rbind(coef_pooled, coef_unpoled, coef_partial_pooling) %>%
+  left_join(df_mn, by = "county")
+```
+
+Si volvemos a pintar los modelos ajustados.
+
+```{r}
+p_model_comparison <-  df_models %>% 
+  filter(county %in% unique(county)[condados_num]) %>% 
+  ggplot(aes(x = jitter(floor, factor = 0.1), y = y)) + 
+  geom_point(size = rel(0.7)) +
+  geom_abline(aes(intercept = intercept, slope = coef, color = modelo))  +
+  facet_wrap(~county) +
+  labs(y = "log(radon)", x = "floor")
+p_model_comparison
+```
+
+Voilá! Si nos fijamos, vemos que las estimaciones del modelo mixto representan un compromiso entre las estimaciones del modelo que no tiene en cuenta el condado y el modelo  lineal que si las tiene en cuenta. En los condados dónde el modelo *pooled* y el *no pooled* eran similares el modelo mixto es similar, en los condados dónde las estimaciones eran diferentes el modelo mixto se sitúa entre ambos y si hay muchos datos se parece más al modelo *no pooled* mientras que si hay pocos se parece más al modelo *pooled*. Es decir, si hay pocos datos se parece más a lo general y si hay muchos se parece más al comportamiento particular en ese condado. 
+
+
