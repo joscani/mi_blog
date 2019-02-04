@@ -1,0 +1,137 @@
+---
+title: Predictores a nivel de grupo
+author: jlcr
+date: '2019-02-04'
+slug: predictores-a-nivel-de-grupo
+categories:
+  - estadística
+tags:
+  - modelos mixtos
+description: ''
+topics: []
+---
+
+Volviendo al tema de los modelos mixtos, hay una particularidad que me gusta bastante y es la posibilidad de incluir predictores a nivel de grupo. Imaginemos que queremos estimar algo a nivel provincial, por ejemplo el salario medio. Para eso hemos preguntado de forma aleatoria (entendemos que con un muestreo bien hecho, tipo estratificado por provincias o similar) y tenemos unos datos con los que estimar. Supongamos que para cada encuestado tenemos su salario, su edad y la provincia a la que pertenece.
+
+En un modelo lineal clásico tendríamos 53 coeficientes
+
+$y_i \sim \mathcal{N}(\beta_0 + \beta_1 \cdot edad_i +  \beta_2 \cdot prov_2 + \ldots + \beta_{52} \cdot prov_{52},\; \sigma^2)$
+
+Dónde $\beta_0$ sería el coeficiente para la categoría de referencia de la variable *provincia* para *x=0*. 
+
+Supongamos también que tenemos el número de empresas de más de 50 empleados en cada provincia y  queremos meter esa variable en el modelo. El problema es que para todos los encuestados de la misma provincia tenemos el mismo valor del número de empresas con lo que en un modelo de regresión lineal clásico tenemos colinealidad perfecta y se devuelven NA's para los coeficientes sobrantes.
+
+Sin embargo en un modelo mixto se pueden incluir variables a nivel de las variables categóricas sin problema, es lo que conoce como los "group level predictors". Gelman comenta lo siguiente "Los group-level predictors juegan un papel importante en los modelos multinivel ya que reducen la variabilidad no explicada a nivel de grupo".
+
+Los group-level predictors hace que se incremente la cantidad de información compartida  y se consiguen $\alpha_j$ más precisos, especialmente en los grupos con menor muestra. 
+
+Nuestro modelo quedaría algo así como 
+
+$y_i \sim \mathcal{N}(\beta_o + \beta_1 \cdot edad + \alpha_j \cdot provincia , \; \sigma^2_{y})$
+
+dónde 
+
+$\alpha_j \sim \mathcal{N}(\gamma_0 + \gamma_1 \cdot \text{empresas}_j  , \;\sigma^{2}_{prov} ) \; j = 1 \ldots 52$
+
+Despúes de todo este rollo y cómo no me apetece nada ponerme a buscar una encuesta de salarios a nivel provincial y datos del número de empresas en cada provincia, voy a poner unos datos simulados para ilustrar el problema de la colinealidad que induce tener variables a nivel de grupo en un modelo lineal de toda la vida.
+
+
+
+```{r}
+set.seed(42)
+x <- rnorm(100,3,1)
+y <- 20 + 2*x + rnorm(length(x),2,0.5)
+
+plot(x,y, pch = 19, cex = 0.7)
+```
+
+Modifico un poco la y para tener 3 grupos según tramos en x y me creo una variable de tipo factor que indique qué grupo es cada uno
+
+
+```{r}
+
+y[x <= 2] <- y[x <= 2] - 3
+y[x > 2 & x < 4] <- y[x > 2 & x < 4] + 7
+y[x >= 4] <- y[x >= 4] + 13
+
+A <- factor(c(1,2,3))
+A[x<=2] <- 1
+A[x>2 & x<4] <- 2
+A[x>=4] <- 3
+
+
+plot(x,y,col=A, pch = 19, cex = 0.7)
+```
+
+
+Creo variable a nivel de grupo que tenga los mismos valores para cada grupo
+
+```{r}
+aux <- c(10, 20, 70 )
+Z <- aux[A]
+Z
+
+plot(Z,y,col=A,pch=19)
+plot(x,Z, col = A, pch = 19)
+```
+
+
+```{r}
+datos <- data.frame(y,x,A,Z)
+DT::datatable(datos)
+```
+
+Intentamos hacer un modelo lineal 
+
+
+```{r}
+mod1 <- lm(y ~ x + A + Z , data = datos)
+summary(mod1)
+
+```
+
+Y vemos que no puede calcular el coeficiente para Z, es decir, en el modelo o metemos la variable A o la variable Z, pero no podemos meter las 2 a la vez
+
+
+Veamos con un modelo multinivel, dónde metemos la variable A como efecto aleatorio y las variables x y Z como efectos fijos.
+
+```{r}
+library(lme4)
+mod_lmer <- lmer(y ~ x + Z + (1 | A), data = datos)
+summary(mod_lmer)
+
+```
+
+Este modelo ha podido calcular el coeficiente de Z.
+Extraemos los efectos fijos, los aleatorios y todos juntos
+
+```{r}
+fixef(mod_lmer)
+```
+
+Efectos aleatorios
+
+```{r}
+ranef(mod_lmer)
+```
+
+```{r}
+coef(mod_lmer)
+```
+
+Podemos dibujar los coeficientes estimados y su intervalo de confianza
+
+```{r}
+sjPlot::plot_model(mod_lmer, type = "est")
+```
+
+Y los efectos aleatorios serían
+
+```{r}
+sjPlot::plot_model(mod_lmer, type = "re")
+```
+
+De esta forma podemos estimar efectos de variables a diferentes niveles de agregación de nuestros datos e incluir información auxiliar relevante. 
+
+
+
