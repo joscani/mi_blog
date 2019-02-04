@@ -17,7 +17,7 @@ En un modelo lineal clásico tendríamos 53 coeficientes
 
 $y_i \sim \mathcal{N}(\beta_0 + \beta_1 \cdot edad_i +  \beta_2 \cdot prov_2 + \ldots + \beta_{52} \cdot prov_{52},\; \sigma^2)$
 
-Dónde $\beta_0$ sería el coeficiente para la categoría de referencia de la variable *provincia* para *x=0*. 
+Dónde $\beta_0$ sería el coeficiente para la categoría de referencia de la variable *provincia* para *edad=0*. 
 
 Supongamos también que tenemos el número de empresas de más de 50 empleados en cada provincia y  queremos meter esa variable en el modelo. El problema es que para todos los encuestados de la misma provincia tenemos el mismo valor del número de empresas con lo que en un modelo de regresión lineal clásico tenemos colinealidad perfecta y se devuelven NA's para los coeficientes sobrantes.
 
