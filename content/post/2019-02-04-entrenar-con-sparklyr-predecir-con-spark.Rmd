@@ -1,0 +1,188 @@
+---
+title: Entrenar con sparklyr, predecir con spark
+author: jlcr
+date: '2019-02-04'
+slug: entrenar-con-sparklyr-predecir-con-spark
+categories:
+  - ciencia de datos
+tags:
+  - producción
+  - spark
+  - R
+description: ''
+topics: []
+---
+
+Vivimos en la era del big data según dicen por esos lares, también tengo algún amigo que dice que el big data son los padres, no le falta razón. La mayoría de las cosas que hacemos se pueden hacer sin big data, porque en primer lugar ni en el 95 % de las veces se requiere y porque en el 5% restante podríamos hacer muestreo. Si no hay señal en 20.000 datos díficilmente va a haberla en 2 millones. 
+
+Dicho esto, esta entrada va sobre lo fácil que es entrenar un modelo con spark usando [sparklyr](https://spark.rstudio.com/). Sparklyr es una librería de la gente de [rstudio](https://www.rstudio.com/) que permite utilizar spark desde R, permitiendo por ejemplo utilizar dplyr como interfaz mientras que es spark quien realiza el trabajo duro. Sparklyr tiene además wrappers de las funciones de MLlib  por lo que hacer entrenar un modelo en spark si eres usuario de R está "tirao".
+
+Cogemos el mismo ejemplo de juguete que [aquí](https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/)
+
+
+## Modelo de juguete
+
+```{r, warning=FALSE, message=FALSE}
+library(sparklyr)
+library(tidyverse)
+sc <- spark_connect(master = "local")
+```
+
+
+```{r}
+df <- starwars %>% select(mass, height, hair_color, birth_year)
+```
+
+
+Subimos los datos a spark
+
+```{r}
+# Convertimos a sparkdataframe
+starwars_tbl <- sc %>%  sdf_copy_to(df, names = "starwars_spark")
+starwars_tbl
+
+
+
+```
+
+Hacemos algo con los valores perdidos. Podemos usar sintaxis de dplyr sobre un sparkdataframe, básicamente lo que hace es ejecutar spark.sql
+
+```{r}
+
+# Se aconseja separar los mutate al hacerlos sobre un spark dataframe
+
+starwars_tbl <- starwars_tbl %>%
+  mutate(height = if_else(is.na(height), mean(height), height)) %>%
+  mutate(mass = if_else(is.na(mass), mean(mass), mass)) %>% 
+  mutate(birth_year = if_else(is.na(birth_year), mean(birth_year), birth_year))
+
+```
+
+
+Train, test y guardamos los datos de test en csv para luego importarlos desde spark con scala
+
+```{r}
+partition <-starwars_tbl %>%  sdf_partition(training = 0.7, test = 0.3, seed = 155)
+
+train <- partition$training
+test <- partition$test
+
+write_csv(collect(test), path = "test_spark.csv")
+```
+
+
+**Modelo**
+
+Vamos a utilizar un modelo *gbm* de spark, huelga decir que los modelos gbm en spark están implementados de manera subóptima por ser amable, para este tipo de modelos es mucho mejor usar H2O.
+
+```{r}
+m_gbm <- train %>% ml_gbt_regressor(height ~ mass + birth_year)
+```
+
+Y ya podemos utilizar el modelo para predecir
+
+```{r}
+prediccion <- test %>% sdf_predict(m_gbm)
+prediccion
+```
+
+Calculamos la importancia de las variables y el rmse
+
+```{r}
+ml_feature_importances(m_gbm)
+```
+
+```{r}
+prediccion %>% ml_regression_evaluator(label_col = "height", metric = "rmse")
+```
+
+## Productivizar modelos de spark
+
+Spark tiene funciones para guardar y salvar modelos (y también el Pipeline entero). Esto permite que un científico de datos pueda entrenar sus modelos en spark usando scala, pyspark, sparkR o sparklyr, guardarlo en una ruta del hdfs por ejemplo y que luego se pueda cargar desde scala, lo cual facilita enormemente el proceso de ponerlos en producción.
+
+
+En primer lugar salvamos nuestro modelito de juguete.
+
+```{r}
+# guarda el modelo en la carpeta m_gbm
+ml_save(m_gbm, path = "m_gbm", overwrite = TRUE)
+```
+
+Nos vamos a un spark-shell
+
+```{bash, eval = FALSE}
+# lo lanzo en mi spark instalado en local pero también sirve en un cluster con yarn
+~/spark/spark-2.4.0-bin-hadoop2.7/bin/spark-shell --conf spark.driver.memory="2g" --conf spark.executor.memory="2g" --conf spark.executor.instances=2 --conf spark.executor.cores=2
+
+```
+
+
+```scala
+import org.apache.spark.ml.regression.RandomForestRegressor
+import org.apache.spark.ml.regression.GBTRegressor
+import org.apache.spark.ml.PipelineModel
+import org.apache.spark.sql.types._
+
+// Import data
+val dataPath = "test_spark.csv"
+
+// hay que crear un esquema para que lea bien los tipos, al leer
+// de csv local
+// Gracias a José Carlos, mi ingenazi favorito
+
+val mi_esquema = StructType(Array(
+        StructField("mass", DoubleType, true),
+        StructField("height", DoubleType, true),
+        StructField("hair_color", StringType, true),
+        StructField("birth_year", DoubleType, true)))
+        
+val dfStarWars = spark.read.option("header", "true").
+  schema(mi_esquema).
+  csv(dataPath)
+
+
+```
+
+Hacemos un load del modelo guardado que se entrenó con sparklyr y hacemos la predicción que guardamos en un spark dataframe que podemos luego guardar en una tabla hive o como queramos.
+
+
+
+```scala
+val modelo_gbt =  PipelineModel.load("m_gbm")
+
+val prediccion = modelo_gbt.transform(dfStarWars)
+
+```
+
+y ya está. 
+
+
+```scala
+scala> prediccion.select("label","prediction").show
++------------------+------------------+
+|             label|        prediction|
++------------------+------------------+
+|              66.0| 78.85959836683551|
+|             165.0| 83.72420090209631|
+|             178.0| 190.3813215401054|
+|             150.0| 170.1962486173942|
+|             163.0|182.58605991654028|
+|             160.0|182.58605991654028|
+|             173.0| 168.5011882907288|
+|             167.0|199.06341481661963|
+|             182.0| 169.5428405224873|
+|             188.0| 182.3089130362614|
+|             193.0|203.05341183966138|
+|             224.0|187.77496086646852|
+|             188.0|201.95281487952235|
+|             229.0|193.11401242888724|
+|             193.0|201.82085181936893|
+|             122.0|172.14250890464118|
+|             150.0| 176.7744868608689|
+|             163.0| 189.3173296140381|
+|             171.0|172.14250890464118|
+|174.35802469135803|172.14250890464118|
++------------------+------------------+
+only showing top 20 rows
+```
+Especial agradecimiento a José Carlos, uno de mis *"ingenazis"* preferidos.

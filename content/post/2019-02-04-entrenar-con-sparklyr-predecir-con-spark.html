@@ -1,0 +1,161 @@
+---
+title: Entrenar con sparklyr, predecir con spark
+author: jlcr
+date: '2019-02-04'
+slug: entrenar-con-sparklyr-predecir-con-spark
+categories:
+  - ciencia de datos
+tags:
+  - producción
+  - spark
+  - R
+description: ''
+topics: []
+---
+
+
+
+<p>Vivimos en la era del big data según dicen por esos lares, también tengo algún amigo que dice que el big data son los padres, no le falta razón. La mayoría de las cosas que hacemos se pueden hacer sin big data, porque en primer lugar ni en el 95 % de las veces se requiere y porque en el 5% restante podríamos hacer muestreo. Si no hay señal en 20.000 datos díficilmente va a haberla en 2 millones.</p>
+<p>Dicho esto, esta entrada va sobre lo fácil que es entrenar un modelo con spark usando <a href="https://spark.rstudio.com/">sparklyr</a>. Sparklyr es una librería de la gente de <a href="https://www.rstudio.com/">rstudio</a> que permite utilizar spark desde R, permitiendo por ejemplo utilizar dplyr como interfaz mientras que es spark quien realiza el trabajo duro. Sparklyr tiene además wrappers de las funciones de MLlib por lo que hacer entrenar un modelo en spark si eres usuario de R está “tirao”.</p>
+<p>Cogemos el mismo ejemplo de juguete que <a href="https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/">aquí</a></p>
+<div id="modelo-de-juguete" class="section level2">
+<h2>Modelo de juguete</h2>
+<pre class="r"><code>library(sparklyr)
+library(tidyverse)
+sc &lt;- spark_connect(master = &quot;local&quot;)</code></pre>
+<pre class="r"><code>df &lt;- starwars %&gt;% select(mass, height, hair_color, birth_year)</code></pre>
+<p>Subimos los datos a spark</p>
+<pre class="r"><code># Convertimos a sparkdataframe
+starwars_tbl &lt;- sc %&gt;%  sdf_copy_to(df, names = &quot;starwars_spark&quot;)
+starwars_tbl</code></pre>
+<pre><code>## # Source: spark&lt;df&gt; [?? x 4]
+##     mass height hair_color    birth_year
+##    &lt;dbl&gt;  &lt;int&gt; &lt;chr&gt;              &lt;dbl&gt;
+##  1    77    172 blond               19  
+##  2    75    167 NA                 112  
+##  3    32     96 NA                  33  
+##  4   136    202 none                41.9
+##  5    49    150 brown               19  
+##  6   120    178 brown, grey         52  
+##  7    75    165 brown               47  
+##  8    32     97 NA                 NaN  
+##  9    84    183 black               24  
+## 10    77    182 auburn, white       57  
+## # … with more rows</code></pre>
+<p>Hacemos algo con los valores perdidos. Podemos usar sintaxis de dplyr sobre un sparkdataframe, básicamente lo que hace es ejecutar spark.sql</p>
+<pre class="r"><code># Se aconseja separar los mutate al hacerlos sobre un spark dataframe
+
+starwars_tbl &lt;- starwars_tbl %&gt;%
+  mutate(height = if_else(is.na(height), mean(height), height)) %&gt;%
+  mutate(mass = if_else(is.na(mass), mean(mass), mass)) %&gt;% 
+  mutate(birth_year = if_else(is.na(birth_year), mean(birth_year), birth_year))</code></pre>
+<p>Train, test y guardamos los datos de test en csv para luego importarlos desde spark con scala</p>
+<pre class="r"><code>partition &lt;-starwars_tbl %&gt;%  sdf_partition(training = 0.7, test = 0.3, seed = 155)</code></pre>
+<pre><code>## Warning: Missing values are always removed in SQL.
+## Use `avg(x, na.rm = TRUE)` to silence this warning
+
+## Warning: Missing values are always removed in SQL.
+## Use `avg(x, na.rm = TRUE)` to silence this warning
+
+## Warning: Missing values are always removed in SQL.
+## Use `avg(x, na.rm = TRUE)` to silence this warning</code></pre>
+<pre class="r"><code>train &lt;- partition$training
+test &lt;- partition$test
+
+write_csv(collect(test), path = &quot;test_spark.csv&quot;)</code></pre>
+<p><strong>Modelo</strong></p>
+<p>Vamos a utilizar un modelo <em>gbm</em> de spark, huelga decir que los modelos gbm en spark están implementados de manera subóptima por ser amable, para este tipo de modelos es mucho mejor usar H2O.</p>
+<pre class="r"><code>m_gbm &lt;- train %&gt;% ml_gbt_regressor(height ~ mass + birth_year)</code></pre>
+<p>Y ya podemos utilizar el modelo para predecir</p>
+<pre class="r"><code>prediccion &lt;- test %&gt;% sdf_predict(m_gbm)
+prediccion</code></pre>
+<pre><code>## # Source: spark&lt;?&gt; [?? x 5]
+##     mass height hair_color    birth_year prediction
+##    &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;              &lt;dbl&gt;      &lt;dbl&gt;
+##  1    17     66 white              896         78.9
+##  2    45    165 brown               46         83.7
+##  3    48    178 none                87.6      190. 
+##  4    49    150 brown               19        170. 
+##  5    65    163 none                87.6      183. 
+##  6    68    160 none                87.6      183. 
+##  7    74    173 NA                  44        169. 
+##  8    75    167 NA                 112        199. 
+##  9    77    182 auburn, white       57        170. 
+## 10    79    188 brown               87.6      182. 
+## # … with more rows</code></pre>
+<p>Calculamos la importancia de las variables y el rmse</p>
+<pre class="r"><code>ml_feature_importances(m_gbm)</code></pre>
+<pre><code>##      feature importance
+## 1       mass  0.6613639
+## 2 birth_year  0.3386361</code></pre>
+<pre class="r"><code>prediccion %&gt;% ml_regression_evaluator(label_col = &quot;height&quot;, metric = &quot;rmse&quot;)</code></pre>
+<pre><code>## [1] 31.84751</code></pre>
+</div>
+<div id="productivizar-modelos-de-spark" class="section level2">
+<h2>Productivizar modelos de spark</h2>
+<p>Spark tiene funciones para guardar y salvar modelos (y también el Pipeline entero). Esto permite que un científico de datos pueda entrenar sus modelos en spark usando scala, pyspark, sparkR o sparklyr, guardarlo en una ruta del hdfs por ejemplo y que luego se pueda cargar desde scala, lo cual facilita enormemente el proceso de ponerlos en producción.</p>
+<p>En primer lugar salvamos nuestro modelito de juguete.</p>
+<pre class="r"><code># guarda el modelo en la carpeta m_gbm
+ml_save(m_gbm, path = &quot;m_gbm&quot;, overwrite = TRUE)</code></pre>
+<pre><code>## Model successfully saved.</code></pre>
+<p>Nos vamos a un spark-shell</p>
+<pre class="bash"><code># lo lanzo en mi spark instalado en local pero también sirve en un cluster con yarn
+~/spark/spark-2.4.0-bin-hadoop2.7/bin/spark-shell --conf spark.driver.memory=&quot;2g&quot; --conf spark.executor.memory=&quot;2g&quot; --conf spark.executor.instances=2 --conf spark.executor.cores=2
+</code></pre>
+<pre class="scala"><code>import org.apache.spark.ml.regression.RandomForestRegressor
+import org.apache.spark.ml.regression.GBTRegressor
+import org.apache.spark.ml.PipelineModel
+import org.apache.spark.sql.types._
+
+// Import data
+val dataPath = &quot;test_spark.csv&quot;
+
+// hay que crear un esquema para que lea bien los tipos, al leer
+// de csv local
+// Gracias a José Carlos, mi ingenazi favorito
+
+val mi_esquema = StructType(Array(
+        StructField(&quot;mass&quot;, DoubleType, true),
+        StructField(&quot;height&quot;, DoubleType, true),
+        StructField(&quot;hair_color&quot;, StringType, true),
+        StructField(&quot;birth_year&quot;, DoubleType, true)))
+        
+val dfStarWars = spark.read.option(&quot;header&quot;, &quot;true&quot;).
+  schema(mi_esquema).
+  csv(dataPath)
+
+</code></pre>
+<p>Hacemos un load del modelo guardado que se entrenó con sparklyr y hacemos la predicción que guardamos en un spark dataframe que podemos luego guardar en una tabla hive o como queramos.</p>
+<pre class="scala"><code>val modelo_gbt =  PipelineModel.load(&quot;m_gbm&quot;)
+
+val prediccion = modelo_gbt.transform(dfStarWars)
+</code></pre>
+<p>y ya está.</p>
+<pre class="scala"><code>scala&gt; prediccion.select(&quot;label&quot;,&quot;prediction&quot;).show
++------------------+------------------+
+|             label|        prediction|
++------------------+------------------+
+|              66.0| 78.85959836683551|
+|             165.0| 83.72420090209631|
+|             178.0| 190.3813215401054|
+|             150.0| 170.1962486173942|
+|             163.0|182.58605991654028|
+|             160.0|182.58605991654028|
+|             173.0| 168.5011882907288|
+|             167.0|199.06341481661963|
+|             182.0| 169.5428405224873|
+|             188.0| 182.3089130362614|
+|             193.0|203.05341183966138|
+|             224.0|187.77496086646852|
+|             188.0|201.95281487952235|
+|             229.0|193.11401242888724|
+|             193.0|201.82085181936893|
+|             122.0|172.14250890464118|
+|             150.0| 176.7744868608689|
+|             163.0| 189.3173296140381|
+|             171.0|172.14250890464118|
+|174.35802469135803|172.14250890464118|
++------------------+------------------+
+only showing top 20 rows</code></pre>
+<p>Especial agradecimiento a José Carlos, uno de mis <em>“ingenazis”</em> preferidos.</p>
+</div>
