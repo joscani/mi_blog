@@ -16,8 +16,8 @@ topics: []
 
 
 <p>Vivimos en la era del big data según dicen por esos lares, también tengo algún amigo que dice que el big data son los padres, no le falta razón. La mayoría de las cosas que hacemos se pueden hacer sin big data, porque en primer lugar ni en el 95 % de las veces se requiere y porque en el 5% restante podríamos hacer muestreo. Si no hay señal en 20.000 datos díficilmente va a haberla en 2 millones.</p>
-<p>Dicho esto, esta entrada va sobre lo fácil que es entrenar un modelo con spark usando <a href="https://spark.rstudio.com/">sparklyr</a>. Sparklyr es una librería de la gente de <a href="https://www.rstudio.com/">rstudio</a> que permite utilizar spark desde R, permitiendo por ejemplo utilizar dplyr como interfaz mientras que es spark quien realiza el trabajo duro. Sparklyr tiene además wrappers de las funciones de MLlib por lo que hacer entrenar un modelo en spark si eres usuario de R está “tirao”.</p>
-<p>Cogemos el mismo ejemplo de juguete que <a href="https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/">aquí</a></p>
+<p>Dicho esto, esta entrada va sobre lo fácil que es entrenar un modelo con spark usando <a href="https://spark.rstudio.com/">sparklyr</a>. Sparklyr es una librería de la gente de <a href="https://www.rstudio.com/">rstudio</a> que permite utilizar spark desde R, permitiendo por ejemplo utilizar dplyr como interfaz mientras que es spark quien realiza el trabajo duro. Sparklyr tiene además wrappers de las funciones de MLlib por lo que entrenar un modelo en spark si eres usuario de R está “tirao”.</p>
+<p>Reproducimos el mismo ejemplo de juguete que <a href="https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/">aquí</a></p>
 <div id="modelo-de-juguete" class="section level2">
 <h2>Modelo de juguete</h2>
 <pre class="r"><code>library(sparklyr)
@@ -112,7 +112,6 @@ val dataPath = &quot;test_spark.csv&quot;
 
 // hay que crear un esquema para que lea bien los tipos, al leer
 // de csv local
-// Gracias a José Carlos, mi ingenazi favorito
 
 val mi_esquema = StructType(Array(
         StructField(&quot;mass&quot;, DoubleType, true),

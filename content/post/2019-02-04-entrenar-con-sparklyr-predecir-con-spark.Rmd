@@ -15,9 +15,9 @@ topics: []
 
 Vivimos en la era del big data según dicen por esos lares, también tengo algún amigo que dice que el big data son los padres, no le falta razón. La mayoría de las cosas que hacemos se pueden hacer sin big data, porque en primer lugar ni en el 95 % de las veces se requiere y porque en el 5% restante podríamos hacer muestreo. Si no hay señal en 20.000 datos díficilmente va a haberla en 2 millones. 
 
-Dicho esto, esta entrada va sobre lo fácil que es entrenar un modelo con spark usando [sparklyr](https://spark.rstudio.com/). Sparklyr es una librería de la gente de [rstudio](https://www.rstudio.com/) que permite utilizar spark desde R, permitiendo por ejemplo utilizar dplyr como interfaz mientras que es spark quien realiza el trabajo duro. Sparklyr tiene además wrappers de las funciones de MLlib  por lo que hacer entrenar un modelo en spark si eres usuario de R está "tirao".
+Dicho esto, esta entrada va sobre lo fácil que es entrenar un modelo con spark usando [sparklyr](https://spark.rstudio.com/). Sparklyr es una librería de la gente de [rstudio](https://www.rstudio.com/) que permite utilizar spark desde R, permitiendo por ejemplo utilizar dplyr como interfaz mientras que es spark quien realiza el trabajo duro. Sparklyr tiene además wrappers de las funciones de MLlib  por lo que entrenar un modelo en spark si eres usuario de R está "tirao".
 
-Cogemos el mismo ejemplo de juguete que [aquí](https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/)
+Reproducimos  el mismo ejemplo de juguete que [aquí](https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/)
 
 
 ## Modelo de juguete
@@ -128,7 +128,6 @@ val dataPath = "test_spark.csv"
 
 // hay que crear un esquema para que lea bien los tipos, al leer
 // de csv local
-// Gracias a José Carlos, mi ingenazi favorito
 
 val mi_esquema = StructType(Array(
         StructField("mass", DoubleType, true),
