@@ -1,0 +1,71 @@
+---
+title: ÑAAS
+author: jlcr
+date: '2019-02-06'
+slug: ñaas
+categories:
+  - spark
+tags: []
+description: ''
+topics: []
+---
+
+Por motivos que no vienen al caso un compañero del curro necesita hacer en spark una regresión lineal para los datos de cada cliente y extraer el coeficiente de una variable. 
+Así que vamos a hacer algo que denomino ÑASS (Ñapas As A Service)
+
+## Cómo lo haríamos en R
+
+
+```{r}
+library(tidyverse)
+
+# simulto datos
+x <- rnorm(100, 2, 10)
+y <- 2 + 3 * x + rnorm(length(x), 1, 3)
+df <- data.frame(id = rep(1:100, each = 3),
+                 y = y ,
+                 x = x)
+
+```
+
+Hacemos un `group_by` y un `do`, ya sé que en R haríamos un `lm(y ~ factor(id) * x, data =df  )` y punto, pero es por algo lo de hacerlo de otra forma.
+
+```{r}
+coeficientes <- df %>%
+  group_by(id) %>%
+  do(coef_x = coef(lm(y ~ x, .))[2]) %>%
+  unnest(coef_x)
+```
+
+```{r}
+coeficientes
+```
+
+## En Spark
+
+Iniciamos sparklyr y creamos el spark dataframe a partir de df
+
+```{r}
+library(sparklyr)
+sc <- spark_connect(master = "local")
+
+```
+
+```{r}
+df_tbl <- sc %>% sdf_copy_to(df, name = "df_spark", overwrite = TRUE)
+df_tbl
+```
+
+Y usamos ahora casi la misma sintaxis que antes, pero en vez de usar `lm` usamos `ml_linear_regression` de MLlib.
+
+
+```{r}
+coeficientes_spark <-  df_tbl %>% group_by(id) %>% 
+  do(coeficientes = coef(ml_linear_regression(., y ~ x))[[2]])  %>% 
+  unnest(coeficientes)
+
+coeficientes_spark
+```
+
+Y lo llamo "ÑAAS" porque aunque es verdad que me hace los modelos en **spark** para cada `id` el resultado de aplicar coef al modelo me devuelve el coeficiente pero en estructura de datos de R, no en spark y lo que queremos es que los coeficientes estén en otro sparkdataframes. Así que si alguien sabe como hacer esto en *scala* usando UDF's o UDAF's que lo comente por aquí. 
+
