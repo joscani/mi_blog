@@ -1,0 +1,59 @@
+---
+title: Muestreando
+author: jlcr
+date: '2019-02-10'
+categories:
+  - estadística
+  - R
+tags:
+  - estadística
+  - muestreo
+slug: muestreando-la-epa
+---
+
+
+
+<p>Vamos con el post. El INE tiene un ftp no muy publicitado <a href="ftp://www.ine.es/">aquí</a>, yo suelo descargarme la Encuesta de Población Activa de <a href="ftp://www.ine.es/temas/epa/">este sitio</a>, hay un fichero comprimido que tiene varias carpetas dónde hay script para poder importar los datos con Stata, SAS, spss y R. Gracias <a href="https://www.ine.es/">INE!!</a>.</p>
+<p>El caso es que es que yo para la epa uso el paquete <code>MicroDatosEs</code> de <a href="https://www.datanalytics.com/">Carlos Gil Bellosta</a></p>
+<p>Leo la EPA y me quedo sólo con la provincia, edad y aoi (que indica si una persona es inactiva, si está ocupada, parada, etc ). El factor de elevación lo he obviado, por si alguien lo echa de menos.</p>
+<pre class="r"><code>library(MicroDatosEs)</code></pre>
+<pre><code>FALSE Loading required package: readr</code></pre>
+<pre class="r"><code>fpath &lt;- &quot;~/Dropbox/Public/datos_4t18/md_EPA_2018T4.txt&quot;
+
+epa &lt;- epa2005(fpath)
+names(epa) &lt;- tolower(names(epa))
+epa &lt;- epa[,c(&quot;prov&quot;, &quot;edad&quot;, &quot;aoi&quot;)]</code></pre>
+<p>Recodifico la variable <code>aoi</code> y quito los inactivos y los menores de 16 años (la sintaxis “viejuna” es intencionada)</p>
+<pre class="r"><code>epa &lt;-  subset(epa, edad != &quot;de 0 A 4 años&quot; &amp; edad != &quot;de 5 A 9 años&quot; &amp; edad != &quot;de 10 A 15 años&quot; )
+  
+epa$aoi[grepl(&quot;^Inactivos&quot;, epa$aoi)] &lt;- &quot;i&quot;
+epa$aoi[grepl(&quot;[O-o]cupados&quot;, epa$aoi)] &lt;- &quot;o&quot;
+epa$aoi[grepl(&quot;^Parados&quot;, epa$aoi)] &lt;- &quot;p&quot;
+
+epa$aoi &lt;- factor(epa$aoi)</code></pre>
+<p>El número de filas en la epa una vez quitados los inactivos es de 137992. Si consideramos como nuestra población estos datos la tasa de paro sería.</p>
+<pre class="r"><code>round(100 *mean(epa$aoi==&quot;p&quot;), 3)</code></pre>
+<pre><code>## [1] 7.748</code></pre>
+<p>¿Qué pasa si muestreamos de forma aleatoria (muestreo con reemplazamiento),y nos quedamos con 2000 filas, por ejemplo?</p>
+<pre class="r"><code>set.seed(43)
+idx &lt;- sample(1:nrow(epa), size = 2000, replace = TRUE)
+round(100 * mean(epa$aoi[idx] == &quot;p&quot;), 2)</code></pre>
+<pre><code>## [1] 7.1</code></pre>
+<p>Pues parece que tal y como nos enseñaron tampoco nos alejamos tanto. ¿Y si repetimos el proceso 10000 veces?</p>
+<pre class="r"><code>Calcular_tasa &lt;- function(){
+  idx &lt;- sample(1:nrow(epa), size = 2000, replace = TRUE)
+  round(100 * mean(epa$aoi[idx] == &quot;p&quot;), 2)
+  
+}
+tasas &lt;- replicate(10000, Calcular_tasa() )
+
+hist(tasas, breaks= 30, col = &quot;darkorange&quot;)</code></pre>
+<p><img src="/post/2019-02-10-muestreando-la-epa_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>Y la mediana y el rango del 95% de los valores centrales</p>
+<pre class="r"><code>median(tasas)</code></pre>
+<pre><code>## [1] 7.75</code></pre>
+<pre class="r"><code>quantile(tasas, probs = c(0.025, 0.975))</code></pre>
+<pre><code>##  2.5% 97.5% 
+##  6.60  8.95</code></pre>
+<p>Así que para calcular un valor poblacional parece que el muestreo funciona (cómo ya sabíamos desde hace años). En próximas entradas veremos como si bajamos la granularidad y queremos estimar en un dominio más pequeño tendremos más problemas, y cómo los modelos mixtos nos pueden ayudar.</p>
+<p>Así que ya saben, <strong>muestrear no es pecado</strong> , a pesar de lo que digan los adalides del big data.</p>
