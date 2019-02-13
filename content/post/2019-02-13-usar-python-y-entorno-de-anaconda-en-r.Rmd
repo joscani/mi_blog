@@ -1,0 +1,91 @@
+---
+title: 'Usar entorno de anaconda en R '
+author: jlcrs
+date: '2019-02-13'
+slug: usar-python-y-entorno-de-anaconda-en-r
+categories:
+  - R python
+tags:
+  - R python
+description: ''
+topics: []
+---
+
+El otro día me comentaba un científico de datos al que respeto profundamente que está flipando con poder usar sus modelos de python guardados en pickle dentro de R usando la librería `reticulate` y crear una shiny app, de hecho su comentario literal fue "estoy haciendo unos `shinys` monísimos".
+
+El tema es que ayer me puse a investigar la maravillosa librería de la gente de databricks [MLflow](https://mlflow.org/),  ¡gracias Diego por animarme a probarla!, la cual merece por sí sola varias entradas. Total, que cómo yo soy usuario impenitente de R, que para eso soy el vice de la [Comunidad R-Hispano](http://r-es.org/quenes-somos/) pues me puse a instalar la librería de MLflow para R y ejecutar este ejemplo en Rstudio
+
+
+```{r, eval=FALSE}
+library(mlflow)
+# Read parameters
+column <- mlflow_log_param("column", 1)
+
+# Log total rows
+mlflow_log_metric("rows", nrow(iris))
+
+# Train model
+model <- lm(Sepal.Width ~ iris[[column]], iris)
+
+# Log models intercept
+mlflow_log_metric("intercept", model$coefficients[["(Intercept)"]])
+mlflow::mlflow_ui()
+```
+
+Y nada, que se me queja de que no encuentra el `conda` binary, y pienso, pero si está instalado y configurado el path en mi `.bashrc`. Investigando un poco resulta que Rstudio en ubuntu pasa olímpicamenteq del `.bashrc` del usuario, así que he creado un `.Rprofile` en el proyecto de rstudio dónde estoy probando estas cosas.
+
+
+`.Rprofile`
+
+```{bash, eval = FALSE}
+Sys.setenv(PATH ="/home/jose/Descargas/anaconda3/bin:/home/jose/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/lib/jvm/java-8-oracle/bin:/usr/lib/jvm/java-8-oracle/db/bin:/usr/lib/jvm/java-8-oracle/jre/bin:/home/jose/Descargas/sublime_text_3")
+
+Sys.setenv(RETICULATE_PYTHON = "/home/jose/Descargas/anaconda3/bin/python")
+
+```
+
+Y con esto ya puedes hacer 
+
+```{r,eval= FALSE}
+mlflow_install()
+```
+
+que instala un entorno de conda que llama `r-mlflow` con las librerías necesarias. 
+
+Para usar ese entorno podemos usar 
+
+```{r}
+reticulate::use_condaenv("r-mlflow")
+```
+
+En ese entorno tengo instalado también `pandas`, `numpy` y `sklearn` así que veamos un ejemplito tonto de cómo reticulate convierte al vuelo entre ambos lenguajes.
+
+```{r}
+library(reticulate)
+library(tidyverse)
+
+```
+
+Importamos `numpy` y `pandas` dentro de R!
+
+```{r}
+np <- import("numpy")
+pd <-  import("pandas")
+```
+
+Y podemos utilizar los métodos de numpy y pandas usando el `$`
+
+```{r}
+x <- rnorm(10000, 2, 3)
+x_mean_np <- np$mean(x)
+x_mean_np
+
+x_python <- r_to_py(x)
+class(x_python)
+```
+
+Con `np$mean(x)` convierte al vuelo el array de R a lista de python calcula la media y devuelve un `numeric` de R. `reticulate` convierte muchas estructuras de datos entre los dos lenguajes, de forma que,  tal y como comentaba mi amigo, podemos usar modelos entrenadas en python y guardados en un pickle para predecir sobre data.frames de R. ¡Qué cosas!
+
+
+
+

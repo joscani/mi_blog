@@ -1,0 +1,64 @@
+---
+title: 'Usar entorno de anaconda en R '
+author: jlcrs
+date: '2019-02-13'
+slug: usar-python-y-entorno-de-anaconda-en-r
+categories:
+  - R python
+tags:
+  - R python
+description: ''
+topics: []
+---
+
+
+
+<p>El otro día me comentaba un científico de datos al que respeto profundamente que está flipando con poder usar sus modelos de python guardados en pickle dentro de R usando la librería <code>reticulate</code> y crear una shiny app, de hecho su comentario literal fue “estoy haciendo unos <code>shinys</code> monísimos”.</p>
+<p>El tema es que ayer me puse a investigar la maravillosa librería de la gente de databricks <a href="https://mlflow.org/">MLflow</a>, ¡gracias Diego por animarme a probarla!, la cual merece por sí sola varias entradas. Total, que cómo yo soy usuario impenitente de R, que para eso soy el vice de la <a href="http://r-es.org/quenes-somos/">Comunidad R-Hispano</a> pues me puse a instalar la librería de MLflow para R y ejecutar este ejemplo en Rstudio</p>
+<pre class="r"><code>library(mlflow)
+# Read parameters
+column &lt;- mlflow_log_param(&quot;column&quot;, 1)
+
+# Log total rows
+mlflow_log_metric(&quot;rows&quot;, nrow(iris))
+
+# Train model
+model &lt;- lm(Sepal.Width ~ iris[[column]], iris)
+
+# Log models intercept
+mlflow_log_metric(&quot;intercept&quot;, model$coefficients[[&quot;(Intercept)&quot;]])
+mlflow::mlflow_ui()</code></pre>
+<p>Y nada, que se me queja de que no encuentra el <code>conda</code> binary, y pienso, pero si está instalado y configurado el path en mi <code>.bashrc</code>. Investigando un poco resulta que Rstudio en ubuntu pasa olímpicamenteq del <code>.bashrc</code> del usuario, así que he creado un <code>.Rprofile</code> en el proyecto de rstudio dónde estoy probando estas cosas.</p>
+<p><code>.Rprofile</code></p>
+<pre class="bash"><code>Sys.setenv(PATH =&quot;/home/jose/Descargas/anaconda3/bin:/home/jose/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/usr/lib/jvm/java-8-oracle/bin:/usr/lib/jvm/java-8-oracle/db/bin:/usr/lib/jvm/java-8-oracle/jre/bin:/home/jose/Descargas/sublime_text_3&quot;)
+
+Sys.setenv(RETICULATE_PYTHON = &quot;/home/jose/Descargas/anaconda3/bin/python&quot;)
+</code></pre>
+<p>Y con esto ya puedes hacer</p>
+<pre class="r"><code>mlflow_install()</code></pre>
+<p>que instala un entorno de conda que llama <code>r-mlflow</code> con las librerías necesarias.</p>
+<p>Para usar ese entorno podemos usar</p>
+<pre class="r"><code>reticulate::use_condaenv(&quot;r-mlflow&quot;)</code></pre>
+<p>En ese entorno tengo instalado también <code>pandas</code>, <code>numpy</code> y <code>sklearn</code> así que veamos un ejemplito tonto de cómo reticulate convierte al vuelo entre ambos lenguajes.</p>
+<pre class="r"><code>library(reticulate)
+library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ─────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ✔ ggplot2 3.1.0     ✔ purrr   0.3.0
+## ✔ tibble  2.0.1     ✔ dplyr   0.7.8
+## ✔ tidyr   0.8.2     ✔ stringr 1.3.1
+## ✔ readr   1.3.1     ✔ forcats 0.3.0</code></pre>
+<pre><code>## ── Conflicts ────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()</code></pre>
+<p>Importamos <code>numpy</code> y <code>pandas</code> dentro de R!</p>
+<pre class="r"><code>np &lt;- import(&quot;numpy&quot;)
+pd &lt;-  import(&quot;pandas&quot;)</code></pre>
+<p>Y podemos utilizar los métodos de numpy y pandas usando el <code>$</code></p>
+<pre class="r"><code>x &lt;- rnorm(10000, 2, 3)
+x_mean_np &lt;- np$mean(x)
+x_mean_np</code></pre>
+<pre><code>## [1] 1.987333</code></pre>
+<pre class="r"><code>x_python &lt;- r_to_py(x)
+class(x_python)</code></pre>
+<pre><code>## [1] &quot;python.builtin.list&quot;   &quot;python.builtin.object&quot;</code></pre>
+<p>Con <code>np$mean(x)</code> convierte al vuelo el array de R a lista de python calcula la media y devuelve un <code>numeric</code> de R. <code>reticulate</code> convierte muchas estructuras de datos entre los dos lenguajes, de forma que, tal y como comentaba mi amigo, podemos usar modelos entrenadas en python y guardados en un pickle para predecir sobre data.frames de R. ¡Qué cosas!</p>
