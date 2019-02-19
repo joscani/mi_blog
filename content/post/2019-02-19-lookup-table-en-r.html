@@ -1,5 +1,5 @@
 ---
-title: '"Lookup table" en R'
+title: '"Lookup table" en R y en Python'
 author: jlcr
 date: '2019-02-19'
 slug: lookup-table-en-r
@@ -7,6 +7,7 @@ categories:
   - R
 tags:
   - R
+  - Python
 description: ''
 topics: []
 ---
@@ -35,3 +36,20 @@ vector_corto</code></pre>
 ##  10  10</code></pre>
 <p>Al indexar sobre <code>vector_corto</code> (que tiene names) y usar <code>vector_largo</code> como índices obtenemos vector de longitud 20 y que sustituye a,b, c por su valor en la <em>“lookup table”</em> .</p>
 <p>Es un truco viejuno pero útil.</p>
+<p>Y en Python podría ser de esta forma (acepto correcciones).</p>
+<pre class="python"><code>import numpy as np
+letras = [&#39;a&#39;,&#39;b&#39;,&#39;c&#39;]
+np.random.seed(13)
+vector_largo = np.random.choice(letras, 20)
+print(vector_largo)</code></pre>
+<pre><code>## [&#39;c&#39; &#39;a&#39; &#39;c&#39; &#39;a&#39; &#39;c&#39; &#39;c&#39; &#39;a&#39; &#39;b&#39; &#39;a&#39; &#39;c&#39; &#39;c&#39; &#39;a&#39; &#39;c&#39; &#39;c&#39; &#39;c&#39; &#39;c&#39; &#39;b&#39; &#39;b&#39;
+##  &#39;c&#39; &#39;b&#39;]</code></pre>
+<pre class="python"><code>lookup_table = {&#39;a&#39; : 2, &#39;b&#39;: 3, &#39;c&#39; : 99}</code></pre>
+<p>Y usando las maravillosas listas por comprehensión</p>
+<pre class="python"><code>vector_largo_bis = [lookup_table[elemen] 
+                    for elemen in vector_largo 
+                    if elemen in lookup_table]
+                    
+print(vector_largo_bis)</code></pre>
+<pre><code>## [99, 2, 99, 2, 99, 99, 2, 3, 2, 99, 99, 2, 99, 99, 99, 99, 3, 3, 99, 3]</code></pre>
+<p>A mí me parece más elegante cómo se hace en R, pero también es probable que se pueda hacer de otra forma en Python.</p>
