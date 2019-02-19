@@ -1,0 +1,37 @@
+---
+title: '"Lookup table" en R'
+author: jlcr
+date: '2019-02-19'
+slug: lookup-table-en-r
+categories:
+  - R
+tags:
+  - R
+description: ''
+topics: []
+---
+
+
+
+<p>La verdad es que no sé como traducir el término <em>“lookup table”</em>, en fin, vamos al grano.</p>
+<p>Supongamos que tengo un factor con 3 niveles o un vector de caracteres con 3 letras únicas y 20 valores.</p>
+<pre class="r"><code>set.seed(43)
+vector_largo &lt;- sample(c(&quot;a&quot;,&quot;b&quot;,&quot;c&quot;), size = 20, replace = TRUE)
+vector_largo</code></pre>
+<pre><code>##  [1] &quot;b&quot; &quot;c&quot; &quot;a&quot; &quot;c&quot; &quot;a&quot; &quot;b&quot; &quot;c&quot; &quot;b&quot; &quot;a&quot; &quot;c&quot; &quot;b&quot; &quot;a&quot; &quot;b&quot; &quot;a&quot; &quot;b&quot; &quot;c&quot; &quot;a&quot;
+## [18] &quot;a&quot; &quot;a&quot; &quot;a&quot;</code></pre>
+<p>Y que en otro sitio tengo un vector “con nombres” dónde tengo el valor que asigno a “a”, “b” y “c”</p>
+<pre class="r"><code>vector_corto &lt;- c(10,30,-99)
+names(vector_corto) &lt;- c(&quot;a&quot;,&quot;b&quot;,&quot;c&quot;)
+vector_corto</code></pre>
+<pre><code>##   a   b   c 
+##  10  30 -99</code></pre>
+<p>El tema es sustituir en <code>vector_largo</code> a, b y c por el valor que tienen en <code>vector_corto</code>. Una forma fácil de hacerlo es usar los corchetes <code>[</code>. Normalmente dentro de los corchetes solemos poner una condición o una lista de posiciones tipo
+<code>vector_largo[c(1,3,5)]</code> que devolvería las posiciones 1,3, y 5, pero veamos que pasa al hacer lo siguiente.</p>
+<pre class="r"><code>vector_corto[vector_largo]</code></pre>
+<pre><code>##   b   c   a   c   a   b   c   b   a   c   b   a   b   a   b   c   a   a 
+##  30 -99  10 -99  10  30 -99  30  10 -99  30  10  30  10  30 -99  10  10 
+##   a   a 
+##  10  10</code></pre>
+<p>Al indexar sobre <code>vector_corto</code> (que tiene names) y usar <code>vector_largo</code> como índices obtenemos vector de longitud 20 y que sustituye a,b, c por su valor en la <em>“lookup table”</em> .</p>
+<p>Es un truco viejuno pero útil.</p>
