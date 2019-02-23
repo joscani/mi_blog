@@ -70,3 +70,20 @@ print(vector_largo_bis)
 
 A mí me parece más elegante cómo se hace en R, pero también es probable que se pueda hacer de otra forma en Python.
 
+**Corrección en python** 
+
+Un amable lector me comenta que me sobra el `if` 
+
+
+```{python}
+vector_largo_bis = [lookup_table[elemen] 
+                    for elemen in vector_largo ]
+                    
+print(vector_largo_bis)
+```
+
+Aunque el if sería necesario si hay un elemento en `vector_largo` que no está en `lookup_table`. 
+
+
+
+

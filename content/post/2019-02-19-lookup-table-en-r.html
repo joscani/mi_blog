@@ -53,3 +53,11 @@ print(vector_largo)</code></pre>
 print(vector_largo_bis)</code></pre>
 <pre><code>## [99, 2, 99, 2, 99, 99, 2, 3, 2, 99, 99, 2, 99, 99, 99, 99, 3, 3, 99, 3]</code></pre>
 <p>A mí me parece más elegante cómo se hace en R, pero también es probable que se pueda hacer de otra forma en Python.</p>
+<p><strong>Corrección en python</strong></p>
+<p>Un amable lector me comenta que me sobra el <code>if</code></p>
+<pre class="python"><code>vector_largo_bis = [lookup_table[elemen] 
+                    for elemen in vector_largo ]
+                    
+print(vector_largo_bis)</code></pre>
+<pre><code>## [99, 2, 99, 2, 99, 99, 2, 3, 2, 99, 99, 2, 99, 99, 99, 99, 3, 3, 99, 3]</code></pre>
+<p>Aunque el if sería necesario si hay un elemento en <code>vector_largo</code> que no está en <code>lookup_table</code>.</p>
