@@ -1,0 +1,96 @@
+---
+title: Codificación de variables categóricas I
+author: jlcr
+date: '2019-02-27'
+slug: codificacion-de-variables-categoricas-i
+categories:
+  - estadística
+tags:
+  - estadística
+  - R
+description: ''
+topics: []
+---
+
+
+Voy a hacer una serie de entradas sobre codificación de variables categóricas, mi idea es pasar desde la codificación parcial (OneHot Encoders para los modernos), hasta utilizar embeddings. Vamos al lío.
+
+Tradicionalmente, si tenemos una variable categórica con 5 niveles se codifica en tantas variables cero uno como niveles menos uno, puesto que uno de los niveles se toma como referencia y se codifica con todo 0's en las varaibles indicadoras.
+
+Veamos un ejemplo con el conjunto de datos Prestige del paquete `car` en R.
+
+```{r}
+library(car)
+datos <- Prestige
+DT::datatable(datos)
+```
+
+Tenemos la variable `type` que es categórica, con 3 categorías
+
+```{r}
+table(datos$type)
+```
+
+Por defecto R usa la codificación parcial tomando como nivel de referencia el primero.
+
+
+Aquí vemos como sería la codificación
+
+```{r}
+contrasts(datos$type)
+```
+
+
+Pero lo podemos cambiar
+
+```{r}
+datos$type <- relevel(datos$type, ref="prof")
+contrasts(datos$type)
+```
+
+Otros tipos de codificación similares, son `helmert` o `sum` (deviation coding o sum to zero)
+
+```{r}
+contrasts(datos$type) <- "contr.helmert"
+contrasts(datos$type)
+```
+
+```{r}
+contrasts(datos$type) <- "contr.sum"
+contrasts(datos$type)
+```
+
+Este tipo de codificación viene del análisis ANOVA. 
+
+Volvamos al contraste por defecto
+
+```{r}
+contrasts(datos$type) <- "contr.treatment"
+contrasts(datos$type)
+```
+
+Este tipo de codificación es el que hace que por ejemplo en un modelo lineal tengamos tantos coeficientes como niveles del factor menos 1.
+
+```{r}
+foo_model <- lm(income ~ type, data = datos)
+summary(foo_model)
+```
+
+Y de este modelo tenemos que el intercept se corresponde con la media del salario de `proof` , el intercept  + typebc es la media de salario de `bc` y el intercept + typewc es la media de salario de `wc`
+
+```{r}
+tapply(datos$income, datos$type, mean)
+```
+
+Si quitamos el intercept tenemos la media directamente en el modelo.
+
+```{r}
+foo_model_2 <-  lm(income ~ type - 1 , data = datos)
+
+summary(foo_model_2)
+```
+
+
+En próximas entradas contaré algo de la codificación por impacto o la que se deriva de usar un modelo mixto. 
+
+
