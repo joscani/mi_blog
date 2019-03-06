@@ -1,0 +1,267 @@
+---
+title: glmer vs julia vs INLA
+author: jlcr
+date: '2019-03-06'
+slug: glmer-vs-julia-vs-inla
+categories:
+  - estadística
+tags:
+  - R
+  - modelos mixtos
+  - julia
+description: ''
+topics: []
+---
+
+
+
+<p>Hablábamos el otro día mi amigo <a href="www.datanalytics.com">Carlos</a> y yo sobre los modelos mixtos y el uso de <a href="https://github.com/lme4/lme4/"><code>lme4</code></a>, <a href="https://mc-stan.org/"><code>Stan</code></a> o <a href="http://www.r-inla.org/"><code>INLA</code></a>. Total, que el problema es que queríamos un atajo que permitiera tener una estimación de los efectos aleatorios en un tiempo menor que lo que queda hasta el fin del universo.</p>
+<p>Pues nada, investigando vi que existía una librería en <a href="https://julialang.org/">Julia</a> llamada <a href="http://dmbates.github.io/MixedModels.jl/latest/constructors/#Fitting-generalized-linear-mixed-models-1">MixedModels</a> y que es del autor de <code>lme4</code> así que me puse a probar a ver si es verdad el lema de Julia, “tan rápido como C, tan fácil como Python”.</p>
+<p>Vamos a la prueba.</p>
+<p>En primer lugar cargamos nuestros conocidos datos de la Encuesta de Población Activa, que suelo utilizar por ser muy sencilla de entender y por tener un volumen de datos considerable.</p>
+<pre class="r"><code>## Libreria
+library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ──────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ✔ ggplot2 3.1.0       ✔ purrr   0.3.1  
+## ✔ tibble  2.0.1       ✔ dplyr   0.8.0.1
+## ✔ tidyr   0.8.3       ✔ stringr 1.4.0  
+## ✔ readr   1.3.1       ✔ forcats 0.4.0</code></pre>
+<pre><code>## ── Conflicts ─────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>library(MicroDatosEs)
+# install.packages(&quot;JuliaCall&quot;)
+library(JuliaCall)
+
+##  cargar datos
+
+# fpath_dropbox
+
+# enlace_dropbox &lt;- &quot;https://www.dropbox.com/s/h8am8g2yk3dq1y2/md_EPA_2018T4.txt?dl=0&quot;
+
+
+fpath &lt;- &quot;~/Dropbox/Public/datos_4t18/md_EPA_2018T4.txt&quot;
+
+epa &lt;- epa2005(fpath)</code></pre>
+<pre><code>## Warning: 607 parsing failures.
+##  row     col           expected actual                                            file
+## 1641 REPAIRE 1/0/T/F/TRUE/FALSE    115 &#39;~/Dropbox/Public/datos_4t18/md_EPA_2018T4.txt&#39;
+## 1963 REGEST  1/0/T/F/TRUE/FALSE    115 &#39;~/Dropbox/Public/datos_4t18/md_EPA_2018T4.txt&#39;
+## 1963 REPAIRE 1/0/T/F/TRUE/FALSE    115 &#39;~/Dropbox/Public/datos_4t18/md_EPA_2018T4.txt&#39;
+## 2093 REPAIRE 1/0/T/F/TRUE/FALSE    115 &#39;~/Dropbox/Public/datos_4t18/md_EPA_2018T4.txt&#39;
+## 2168 REGEST  1/0/T/F/TRUE/FALSE    310 &#39;~/Dropbox/Public/datos_4t18/md_EPA_2018T4.txt&#39;
+## .... ....... .................. ...... ...............................................
+## See problems(...) for more details.</code></pre>
+<pre class="r"><code>names(epa) &lt;- tolower(names(epa))
+epa &lt;- subset(epa, select = c(prov, edad, nforma, aoi))
+
+recodificacion &lt;- function(dat) {
+  dat$aoi[grepl(&quot;^Inactivos&quot;, dat$aoi)] &lt;- &quot;i&quot;
+  dat$aoi[grepl(&quot;[O-o]cupados&quot;, dat$aoi)] &lt;- &quot;o&quot;
+  dat$aoi[grepl(&quot;^Parados&quot;, dat$aoi)] &lt;- &quot;p&quot;
+  
+  dat$aoi &lt;- factor(dat$aoi)
+  dat$nforma3 &lt;- dat$nforma
+  dat$nforma3[dat$nforma == &quot;Analfabetos&quot; |
+                dat$nforma == &quot;Educación primaria&quot; |
+                dat$nforma == &quot;Educación primaria incompleta&quot;] &lt;-
+    &quot;Est primarios o menos&quot;
+  dat$nforma3[dat$nforma == &quot;Educación superior&quot;] &lt;-
+    &quot;Est. Universitarios&quot;
+  dat$nforma3[dat$nforma == &quot;Primera etapa de educación secundaria&quot; |
+                dat$nforma == &quot;Segunda etapa de educación secundaria, orientación general&quot; |
+                dat$nforma == &quot;Segunda etapa de educación secundaria, orientación profesional&quot;] &lt;-
+    &quot;Est. Secundarios&quot;
+  
+  dat$nforma3 &lt;- factor(dat$nforma3)
+  
+  dat$gedad &lt;- dat$edad
+  dat$gedad[dat$edad == &quot;de 0 A 4 años&quot; |
+              dat$edad == &quot;de 5 A 9 años&quot; |
+              dat$edad == &quot;de 10 A 15 años&quot;] &lt;- &quot;15 años o menos &quot;
+  dat$gedad[dat$edad == &quot;de 16 A 19 años&quot; |
+              dat$edad == &quot;de 20 A 24 años&quot; |
+              dat$edad == &quot;de 25 A 29 años&quot; |
+              dat$edad == &quot;de 30 A 34 años&quot;] &lt;- &quot;De 16 a 34&quot;
+  
+  dat$gedad[dat$edad == &quot;de 35 A 39 años&quot; |
+              dat$edad == &quot;de 40 A 44 años&quot; |
+              dat$edad == &quot;de 45 A 49 años&quot; |
+              dat$edad == &quot;de 50 A 54 años&quot;] &lt;- &quot;De 35 a 54&quot;
+  
+  dat$gedad[dat$edad == &quot;de 55 A 59 años&quot; |
+              dat$edad == &quot;de 60 A 64 años&quot; |
+              dat$edad == &quot;65 o más años&quot;] &lt;- &quot;55 o más&quot;
+  
+  
+  dat$gedad &lt;-
+    factor(dat$gedad,
+           levels = c(&quot;15 años o menos &quot;, &quot;De 16 a 34&quot;, &quot;De 35 a 54&quot;, &quot;55 o más&quot;)
+    )
+  
+  dat
+}
+
+epa &lt;- recodificacion(epa)
+
+# eliminar menores de 16 años  
+epa &lt;- epa[epa$gedad != &quot;15 años o menos &quot;, ]
+
+# eliminar inactivos
+epa &lt;- epa[epa$aoi != &quot;i&quot;, ]
+
+epa$paro &lt;- ifelse(epa$aoi==&quot;p&quot;, 1,0)</code></pre>
+<p>No voy a contar lo que es un modelo mixto, ni coger datos de train y test, tan sólo ejecutar modelos simples y ver qué tarda más, y menos.</p>
+<div id="modelo-con-glmer" class="section level3">
+<h3>Modelo con <code>glmer</code></h3>
+<p>Uso <code>nAGQ=0</code> y <code>optimizer = &quot;nloptwrap&quot;</code> porque he leído por <a href="http://angrystatistician.blogspot.com/2015/10/mixed-models-in-r-bigger-faster-stronger.html">ahí</a> que es lo más rápido.</p>
+<p>Pego el cacho dónde lo he leído</p>
+<p>&quot; the option “nAGQ=0” tells glmer to ignore estimating those integrals. For some models this has minimal impact on parameter estimates, and this NCAA hockey model is one of those. The second option tells glmer to fit using the “nloptwrap” optimizer (there are several other optimizers available, too), which tends to be faster than the default optimization method.&quot;</p>
+<pre class="r"><code>library(tictoc)
+library(lme4)</code></pre>
+<pre><code>## Loading required package: Matrix</code></pre>
+<pre><code>## 
+## Attaching package: &#39;Matrix&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:tidyr&#39;:
+## 
+##     expand</code></pre>
+<pre class="r"><code>tic()
+  fit_mixto &lt;- glmer(paro ~ (1 | prov) + (1 | gedad) + (1 | nforma3),
+    family = binomial,
+    data = epa,
+    nAGQ = 0L,
+    control = glmerControl(optimizer = &quot;nloptwrap&quot;)
+  )
+toc()</code></pre>
+<pre><code>## 11.013 sec elapsed</code></pre>
+<div id="summary-del-modelo" class="section level4">
+<h4>Summary del modelo</h4>
+<pre class="r"><code>summary(fit_mixto)</code></pre>
+<pre><code>## Generalized linear mixed model fit by maximum likelihood (Adaptive
+##   Gauss-Hermite Quadrature, nAGQ = 0) [glmerMod]
+##  Family: binomial  ( logit )
+## Formula: paro ~ (1 | prov) + (1 | gedad) + (1 | nforma3)
+##    Data: epa
+## Control: glmerControl(optimizer = &quot;nloptwrap&quot;)
+## 
+##      AIC      BIC   logLik deviance df.resid 
+##  57620.1  57657.0 -28806.1  57612.1    74564 
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -1.2062 -0.4286 -0.3446 -0.2478  5.7528 
+## 
+## Random effects:
+##  Groups  Name        Variance Std.Dev.
+##  prov    (Intercept) 0.1324   0.3638  
+##  gedad   (Intercept) 0.1879   0.4334  
+##  nforma3 (Intercept) 0.3759   0.6131  
+## Number of obs: 74568, groups:  prov, 52; gedad, 3; nforma3, 3
+## 
+## Fixed effects:
+##             Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)  -1.6461     0.4367  -3.769 0.000164 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+</div>
+</div>
+<div id="modelo-con-mixedmodels-en-julia" class="section level3">
+<h3>Modelo con <code>MixedModels</code> en <code>julia</code></h3>
+<p>Fijándome en este <a href="https://rpubs.com/dmbates/377897">post</a> del creador de la librería y en la docu de la librería, me instalé la librería <code>JuliaCall</code> que permite usar <code>julia</code> dentro de <code>R</code></p>
+<pre class="r"><code>library(JuliaCall)
+julia_setup()</code></pre>
+<pre><code>## Julia version 1.0.3 at location /media/hd2/Descargas/julia/julia-1.0.3/bin will be used.</code></pre>
+<pre><code>## Loading setup script for JuliaCall...</code></pre>
+<pre><code>## Finish loading setup script for JuliaCall.</code></pre>
+<pre class="r"><code>julia_library(&quot;MixedModels&quot;)</code></pre>
+<pre class="r"><code>julia_assign(&quot;form&quot;, formula(fit_mixto))
+julia_assign(&quot;epa&quot;, epa)</code></pre>
+<p>Ponemos opción <code>fast=true</code> en GeneralizedLinearMixedModels porque la documentación dice que es lo más rápido.
+Veamos el tiempo que tarda</p>
+<pre class="r"><code>julia_eval(&quot;@elapsed gm1 = fit!(GeneralizedLinearMixedModel(form, epa, Bernoulli()), fast=true)&quot;)</code></pre>
+<pre><code>## [1] 39.9862</code></pre>
+<p>¡Ojo!, utilizando modelos más complejos, glmer pudo hacerlos pero MixedModels en julia, no. La primera vez que julia ejecuta el modelo tarda como unos 40 segundos, porque tiene que compilar no sé qué historia, las sucesivas veces tarda entorno a 9.5 segundos. No está mal, unos 11 segundos de <code>glmer</code> vs 9.5 de <code>MixedModels</code></p>
+<div id="summary-del-modelo-1" class="section level4">
+<h4>Summary del modelo</h4>
+<pre class="r"><code>julia_eval(&quot;gm1&quot;)</code></pre>
+<pre><code>## Julia Object of type GeneralizedLinearMixedModel{Float64}.
+## Generalized Linear Mixed Model fit by maximum likelihood (nAGQ = 1)
+##   Formula: paro ~ (1 | prov) + (1 | gedad) + (1 | nforma3)
+##   Distribution: Bernoulli{Float64}
+##   Link: LogitLink()
+## 
+##   Deviance: 57612.1234
+## 
+## Variance components:
+##              Column    Variance   Std.Dev.  
+##  prov    (Intercept)  0.13269447 0.36427252
+##  gedad   (Intercept)  0.19182336 0.43797643
+##  nforma3 (Intercept)  0.38060583 0.61693260
+## 
+##  Number of obs: 74568; levels of grouping factors: 52, 4, 3
+## 
+## Fixed-effects parameters:
+##              Estimate Std.Error  z value P(&gt;|z|)
+## (Intercept)  -1.64609  0.440015 -3.74097  0.0002</code></pre>
+</div>
+</div>
+<div id="modelo-con-inla" class="section level3">
+<h3>Modelo con <code>INLA</code></h3>
+<p>Con INLA se pueden especificar muchas cosas, voy a poner un modelo sencillo, seguro que se puede optimizar un montón, pero no me apetece ahora mismo.</p>
+<pre class="r"><code>library(INLA)</code></pre>
+<pre><code>## Loading required package: sp</code></pre>
+<pre><code>## Loading required package: splines</code></pre>
+<pre class="r"><code>family1 &lt;- &quot;binomial&quot;
+
+formula1 &lt;- paro ~ f(prov, model = &quot;iid&quot;) +
+  f(gedad, model = &quot;iid&quot;) + f(nforma3, model = &quot;iid&quot;)
+
+tic()
+
+m_inla &lt;- inla(formula1,
+  family = family1,
+  data = epa,
+  control.compute = list(dic = FALSE, cpo = FALSE),
+  control.inla = list(int.strategy = &quot;eb&quot;)
+)
+
+toc()</code></pre>
+<pre><code>## 42.313 sec elapsed</code></pre>
+<div id="resumen-del-modelo" class="section level4">
+<h4>Resumen del modelo</h4>
+<pre class="r"><code>summary(m_inla)</code></pre>
+<pre><code>## 
+## Call:
+## c(&quot;inla(formula = formula1, family = family1, data = epa, control.compute = list(dic = FALSE, &quot;,  &quot;    cpo = FALSE), control.inla = list(int.strategy = \&quot;eb\&quot;))&quot; )
+## 
+## Time used:
+##  Pre-processing    Running inla Post-processing           Total 
+##          1.3064         40.6718          0.3196         42.2978 
+## 
+## Fixed effects:
+##                mean     sd 0.025quant 0.5quant 0.975quant    mode kld
+## (Intercept) -1.6468 0.3516    -2.3371  -1.6468    -0.9571 -1.6468   0
+## 
+## Random effects:
+## Name   Model
+##  prov   IID model 
+## gedad   IID model 
+## nforma3   IID model 
+## 
+## Model hyperparameters:
+##                       mean    sd      0.025quant 0.5quant 0.975quant
+## Precision for prov     8.0170  1.7274  5.1621     7.8371  11.8983   
+## Precision for gedad   11.2783  9.1246  2.1822     8.7681  35.2302   
+## Precision for nforma3  5.2389  4.3745  0.9666     4.0213  16.7289   
+##                       mode   
+## Precision for prov     7.4897
+## Precision for gedad    5.3015
+## Precision for nforma3  2.3709
+## 
+## Expected number of effective parameters(std dev): 52.89(0.00)
+## Number of equivalent replicates : 1409.83 
+## 
+## Marginal Likelihood:  -28830.07</code></pre>
+<p>Pues al menos con este conjunto de datos y este modelo me quedaría con <code>glmer</code> en vez de la implementación con <code>julia</code> o <code>INLA</code></p>
+</div>
+</div>

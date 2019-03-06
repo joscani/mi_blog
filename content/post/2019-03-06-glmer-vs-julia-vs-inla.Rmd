@@ -1,0 +1,210 @@
+---
+title: glmer vs julia vs INLA
+author: jlcr
+date: '2019-03-06'
+slug: glmer-vs-julia-vs-inla
+categories:
+  - estadística
+tags:
+  - R
+  - modelos mixtos
+  - julia
+description: ''
+topics: []
+---
+
+Hablábamos el otro día mi amigo [Carlos](www.datanalytics.com) y yo sobre los modelos mixtos y el uso de [`lme4`](https://github.com/lme4/lme4/), [` Stan`](https://mc-stan.org/) o  [`INLA`](http://www.r-inla.org/). Total, que el problema es que queríamos un atajo que permitiera tener una estimación de los efectos aleatorios en un tiempo menor que lo que queda hasta el fin del universo.
+
+Pues nada, investigando vi que existía una librería en [Julia](https://julialang.org/) llamada [MixedModels](http://dmbates.github.io/MixedModels.jl/latest/constructors/#Fitting-generalized-linear-mixed-models-1) y que es del autor de `lme4` así que me puse a probar a ver si es verdad el lema de Julia, "tan rápido como C, tan fácil como Python".
+
+Vamos a la prueba. 
+
+En primer lugar cargamos nuestros conocidos datos de la Encuesta de Población Activa, que suelo utilizar por ser muy sencilla de entender y por tener un volumen de datos considerable.
+
+
+
+```{r}
+## Libreria
+library(tidyverse)
+library(MicroDatosEs)
+# install.packages("JuliaCall")
+library(JuliaCall)
+
+##  cargar datos
+
+# fpath_dropbox
+
+# enlace_dropbox <- "https://www.dropbox.com/s/h8am8g2yk3dq1y2/md_EPA_2018T4.txt?dl=0"
+
+
+fpath <- "~/Dropbox/Public/datos_4t18/md_EPA_2018T4.txt"
+
+epa <- epa2005(fpath)
+names(epa) <- tolower(names(epa))
+epa <- subset(epa, select = c(prov, edad, nforma, aoi))
+
+recodificacion <- function(dat) {
+  dat$aoi[grepl("^Inactivos", dat$aoi)] <- "i"
+  dat$aoi[grepl("[O-o]cupados", dat$aoi)] <- "o"
+  dat$aoi[grepl("^Parados", dat$aoi)] <- "p"
+  
+  dat$aoi <- factor(dat$aoi)
+  dat$nforma3 <- dat$nforma
+  dat$nforma3[dat$nforma == "Analfabetos" |
+                dat$nforma == "Educación primaria" |
+                dat$nforma == "Educación primaria incompleta"] <-
+    "Est primarios o menos"
+  dat$nforma3[dat$nforma == "Educación superior"] <-
+    "Est. Universitarios"
+  dat$nforma3[dat$nforma == "Primera etapa de educación secundaria" |
+                dat$nforma == "Segunda etapa de educación secundaria, orientación general" |
+                dat$nforma == "Segunda etapa de educación secundaria, orientación profesional"] <-
+    "Est. Secundarios"
+  
+  dat$nforma3 <- factor(dat$nforma3)
+  
+  dat$gedad <- dat$edad
+  dat$gedad[dat$edad == "de 0 A 4 años" |
+              dat$edad == "de 5 A 9 años" |
+              dat$edad == "de 10 A 15 años"] <- "15 años o menos "
+  dat$gedad[dat$edad == "de 16 A 19 años" |
+              dat$edad == "de 20 A 24 años" |
+              dat$edad == "de 25 A 29 años" |
+              dat$edad == "de 30 A 34 años"] <- "De 16 a 34"
+  
+  dat$gedad[dat$edad == "de 35 A 39 años" |
+              dat$edad == "de 40 A 44 años" |
+              dat$edad == "de 45 A 49 años" |
+              dat$edad == "de 50 A 54 años"] <- "De 35 a 54"
+  
+  dat$gedad[dat$edad == "de 55 A 59 años" |
+              dat$edad == "de 60 A 64 años" |
+              dat$edad == "65 o más años"] <- "55 o más"
+  
+  
+  dat$gedad <-
+    factor(dat$gedad,
+           levels = c("15 años o menos ", "De 16 a 34", "De 35 a 54", "55 o más")
+    )
+  
+  dat
+}
+
+epa <- recodificacion(epa)
+
+# eliminar menores de 16 años  
+epa <- epa[epa$gedad != "15 años o menos ", ]
+
+# eliminar inactivos
+epa <- epa[epa$aoi != "i", ]
+
+epa$paro <- ifelse(epa$aoi=="p", 1,0)
+
+```
+
+
+No voy a contar lo que es un modelo mixto, ni coger datos de train y test, tan sólo ejecutar modelos simples y ver qué tarda más, y menos.
+
+### Modelo con `glmer`
+
+Uso `nAGQ=0` y `optimizer = "nloptwrap"` porque he leído por [ahí](http://angrystatistician.blogspot.com/2015/10/mixed-models-in-r-bigger-faster-stronger.html) que es lo más rápido. 
+
+Pego el cacho dónde lo he leído
+
+" the option "nAGQ=0" tells glmer to ignore estimating those integrals. For some models this has minimal impact on parameter estimates, and this NCAA hockey model is one of those. The second option tells glmer to fit using the "nloptwrap" optimizer (there are several other optimizers available, too), which tends to be faster than the default optimization method."
+
+
+```{r}
+library(tictoc)
+library(lme4)
+
+tic()
+  fit_mixto <- glmer(paro ~ (1 | prov) + (1 | gedad) + (1 | nforma3),
+    family = binomial,
+    data = epa,
+    nAGQ = 0L,
+    control = glmerControl(optimizer = "nloptwrap")
+  )
+toc()
+
+```
+
+#### Summary del modelo
+
+```{r}
+summary(fit_mixto)
+```
+
+
+### Modelo con `MixedModels` en `julia`
+
+Fijándome en este [post](https://rpubs.com/dmbates/377897) del creador de la librería y en la docu de la librería, me instalé la librería  `JuliaCall` que permite usar `julia` dentro de `R`
+
+
+```{r}
+library(JuliaCall)
+julia_setup()
+julia_library("MixedModels")
+
+
+julia_assign("form", formula(fit_mixto))
+julia_assign("epa", epa)
+```
+
+Ponemos opción `fast=true` en GeneralizedLinearMixedModels porque la documentación dice que es lo más rápido.
+Veamos el tiempo que tarda
+
+```{r}
+julia_eval("@elapsed gm1 = fit!(GeneralizedLinearMixedModel(form, epa, Bernoulli()), fast=true)")
+
+```
+
+¡Ojo!, utilizando modelos más complejos, glmer pudo hacerlos pero MixedModels en julia, no. La primera vez que julia ejecuta el modelo tarda como unos 40 segundos, porque tiene que compilar no sé qué historia, las sucesivas veces tarda entorno a 9.5 segundos. No está mal, unos 11 segundos de `glmer` vs 9.5 de `MixedModels`
+
+#### Summary del modelo
+
+```{r}
+julia_eval("gm1")
+```
+
+
+
+### Modelo con `INLA`
+
+Con INLA se pueden especificar muchas cosas, voy a poner un modelo sencillo, seguro que se puede optimizar un montón, pero no me apetece ahora mismo. 
+
+
+```{r}
+
+library(INLA)
+
+family1 <- "binomial"
+
+formula1 <- paro ~ f(prov, model = "iid") +
+  f(gedad, model = "iid") + f(nforma3, model = "iid")
+
+tic()
+
+m_inla <- inla(formula1,
+  family = family1,
+  data = epa,
+  control.compute = list(dic = FALSE, cpo = FALSE),
+  control.inla = list(int.strategy = "eb")
+)
+
+toc()
+
+```
+
+
+
+#### Resumen del modelo
+
+```{r}
+summary(m_inla)
+```
+
+
+Pues al menos con este conjunto de datos y este modelo me quedaría con `glmer`  en vez de la implementación con `julia` o `INLA`
+
+
