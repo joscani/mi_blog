@@ -13,7 +13,7 @@ description: ''
 topics: []
 ---
 
-Hablábamos el otro día mi amigo [Carlos](www.datanalytics.com) y yo sobre los modelos mixtos y el uso de [`lme4`](https://github.com/lme4/lme4/), [` Stan`](https://mc-stan.org/) o  [`INLA`](http://www.r-inla.org/). Total, que el problema es que queríamos un atajo que permitiera tener una estimación de los efectos aleatorios en un tiempo menor que lo que queda hasta el fin del universo.
+Hablábamos el otro día mi amigo [Carlos](https://www.datanalytics.com/) y yo sobre los modelos mixtos y el uso de [`lme4`](https://github.com/lme4/lme4/), [` Stan`](https://mc-stan.org/) o  [`INLA`](http://www.r-inla.org/). Total, que el problema es que queríamos un atajo que permitiera tener una estimación de los efectos aleatorios en un tiempo menor que lo que queda hasta el fin del universo.
 
 Pues nada, investigando vi que existía una librería en [Julia](https://julialang.org/) llamada [MixedModels](http://dmbates.github.io/MixedModels.jl/latest/constructors/#Fitting-generalized-linear-mixed-models-1) y que es del autor de `lme4` así que me puse a probar a ver si es verdad el lema de Julia, "tan rápido como C, tan fácil como Python".
 
@@ -196,6 +196,7 @@ toc()
 
 ```
 
+Ojo, que a veces el modelo de  INLA da un crash.
 
 
 #### Resumen del modelo
