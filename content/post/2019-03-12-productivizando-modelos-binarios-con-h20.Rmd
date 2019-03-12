@@ -43,8 +43,7 @@ Para crear la aplicación de spark lo que se necesita básicamente es empaquetar
 
 ### Instalar gradle
 
-En el Intellij Idea podemos decir que use gradle como gestor de dependencias y para empaquetar y el ya se encarga de bajar una versión de gradle que usará en el proyecto, aunque también es fácil hacer `sudo apt install gradle
-` en ubuntu por ejemplo.
+En el Intellij Idea podemos decir que use gradle como gestor de dependencias y para empaquetar y el ya se encarga de bajar una versión de gradle que usará en el proyecto, aunque también es fácil hacer `sudo apt install gradle` en ubuntu por ejemplo.
 
 
 ### Estructuras de carpetas y ficheros
@@ -62,14 +61,14 @@ Y mi fichero principal con la clase se llama `BinaryModels.scala` y está en la 
 
 ### Ficheros
 
-En `settings.gradle` sólo tengo el nombre del proyecto.
+En **`settings.gradle`** sólo tengo el nombre del proyecto.
 
 ```scala
 rootProject.name = 'binary_h2o'
 
 ```
   
-En `gradle.properties` tengo guardadas el número de versión de las librerías que luego especificaremos en `build.gradle`
+En **`gradle.properties`** tengo guardadas el número de versión de las librerías que luego especificaremos en `build.gradle`
 
 ```scala
 
@@ -90,7 +89,7 @@ h2oProjectVersion   = 3.22.1.1
 
 ```
 
-En el fichero `build.gradle` es dónde indicamos qué librerías vamos a usar en nuestro proyecto y cuales queremos que se compilen de forma que cuando hagamos un `gradle build` nos las incluya en el `jar` final
+En el fichero **`build.gradle`**  es dónde indicamos qué librerías vamos a usar en nuestro proyecto y cuales queremos que se compilen de forma que cuando hagamos un `gradle build` nos las incluya en el `jar` final
 
 
 ```scala
@@ -204,7 +203,7 @@ jar {
 
 ### Lógica en spark
 
-En el fichero `src/main/scala/com/h2ospark/BinaryModels.scala` es dónde está implementada la clase principal que incorpora la lógica de predicción de con spark, básicamente la misma que vimos en el post de [jugando con h2o](https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/)
+En el fichero **`src/main/scala/com/h2ospark/BinaryModels.scala`** es dónde está implementada la clase principal que incorpora la lógica de predicción de con spark, básicamente la misma que vimos en el post de [jugando con h2o](https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/)
 
 Una cosa importante, el nombre de la clase debe coincidir con el nombre del fichero.
 
