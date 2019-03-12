@@ -27,7 +27,7 @@ El caso es que nos mola h2o porque sabemos que los modelos están bastante bien 
 
 Pero vamos a ir un poco más allá, adentrándonos un pelín más en el mundo de los ingenieros. Nuestro objetivo es crear una aplicación de Spark que tenga embedida la librería de h2o para hacer predicciones de modelos binarios. 
 
-El objetivo final es tener un `.jar` que podamos lanzar con `spark-submit` y que le pasemos como argumentos un  la ruta dónde está el mojo del modelo entrenado en un **fichero zip**, el nombre de la tabla hive sobre la que vamos a hacer predicciones y el nombre de la tabla dónde queremos guardar las predicciones. Esta aplicación valdrá para todos los modelos de clasificación binaria de h2o, de forma que si quisiéramos subir un nuevo modelo a producción lo único que cambiaría sería el fichero zip (el modelo entrenado en formato MOJO model) y el nombre de las tabla sobre la que se aplica.
+La idea es tener un `.jar` que podamos lanzar con `spark-submit` y que le pasemos como argumentosla ruta dónde está el mojo del modelo entrenado en un **fichero zip**, el nombre de la tabla hive sobre la que vamos a hacer predicciones y el nombre de la tabla dónde queremos guardar las predicciones. Esta aplicación valdrá para todos los modelos de clasificación binaria de h2o, de forma que si quisiéramos subir un nuevo modelo a producción lo único que cambiaría sería el fichero zip (el modelo entrenado en formato MOJO model) y el nombre de las tabla sobre la que se aplica.
 
 Al final, tendremos algo como esto (obviando parámetros de configuración de spark, como número de ejecutores y tal)
 
@@ -39,7 +39,7 @@ spark-submit --class com.h2ospark.BinaryModels binary_h2o-1.0.1-SNAPSHOT.jar mi_
 
 ## Creando el proyecto
 
-Para crear la aplicación de spark lo que se necesita básicamente es empaquetar la lógica y las dependencias necesarias utilizando cosas como [**sbt**](https://www.scala-sbt.org/) o con [**gradle**](https://gradle.org/), yo voy a usar gradle. Una cosa que ayuda bastante es utilizar un IDE adecuado para esto, yo voy a usar [Intellij Idea](https://www.jetbrains.com/idea/).
+Para crear la aplicación de spark lo que se necesita básicamente es empaquetar la lógica y las dependencias necesarias utilizando cosas como [**sbt**](https://www.scala-sbt.org/) o [**gradle**](https://gradle.org/), yo voy a usar gradle. Una cosa que ayuda bastante es utilizar un IDE adecuado para este tipo de tareas, uno muy conocido es [Intellij Idea](https://www.jetbrains.com/idea/).
 
 ### Instalar gradle
 
