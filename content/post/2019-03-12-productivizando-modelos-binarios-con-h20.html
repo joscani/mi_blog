@@ -1,0 +1,253 @@
+---
+title: Productivizando modelos de clasificación binaria con H20
+author: jlcr
+date: '2019-03-12'
+slug: productivizando-modelos-binarios-con-h20
+categories:
+  - estadística
+tags:
+  - h2o
+  - producción
+description: ''
+topics: []
+---
+
+
+
+<p>En un <a href="https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/"><strong>post anterior</strong></a> ya vimos como entrenar un modelo de h2o y cómo sería la lógica para hacer predicciones en un entorno que tenga Spark pero no h2o.</p>
+<p>Un lector del blog comentó que porque no usar directamente H20 con sparkling water y leer directamente los datos a partir de un sparkdataframe y predecir también usando sparkling water. Aquí varios motivos.</p>
+<ol style="list-style-type: decimal">
+<li><p>Por mi escasa experiencia con sparkling water existe un cuello de botella al pasar de sparkdataframe a h2oframe.</p></li>
+<li><p>Puede que estemos en un entorno dónde no te dejen usar H20 en el cluster. Esta circunstancia aumenta su probabilidad si el cluster es gestionado por <strong>terceros</strong>, ejem, ejem.</p></li>
+</ol>
+<p>Lo que si que es posible que tengamos es la posibilidad de instalar h2o en nuestro nodo frontera, ya sea porque lo instalamos usando R o Python o directamente el jar. O a las malas tenemos h2o en local y entrenamos los datos con una muestra.</p>
+<p>El caso es que nos mola h2o porque sabemos que los modelos están bastante bien implementados (mejor que en Spark), que se integra bien con R y Python y que como vimos en el post que enlazo al principio, es muy sencillo predecir usando spark sin necesidad de tener h2o.</p>
+<p>Pero vamos a ir un poco más allá, adentrándonos un pelín más en el mundo de los ingenieros. Nuestro objetivo es crear una aplicación de Spark que tenga embedida la librería de h2o para hacer predicciones de modelos binarios.</p>
+<p>El objetivo final es tener un <code>.jar</code> que podamos lanzar con <code>spark-submit</code> y que le pasemos como argumentos un la ruta dónde está el mojo del modelo entrenado en un <strong>fichero zip</strong>, el nombre de la tabla hive sobre la que vamos a hacer predicciones y el nombre de la tabla dónde queremos guardar las predicciones. Esta aplicación valdrá para todos los modelos de clasificación binaria de h2o, de forma que si quisiéramos subir un nuevo modelo a producción lo único que cambiaría sería el fichero zip (el modelo entrenado en formato MOJO model) y el nombre de las tabla sobre la que se aplica.</p>
+<p>Al final, tendremos algo como esto (obviando parámetros de configuración de spark, como número de ejecutores y tal)</p>
+<pre class="bash"><code>spark-submit --class com.h2ospark.BinaryModels binary_h2o-1.0.1-SNAPSHOT.jar mi_modelo.zip nombre_esquema.tablon_to_predict nombre_esquema.tablon_predicho</code></pre>
+<p>¿Fácil verdad?</p>
+<div id="creando-el-proyecto" class="section level2">
+<h2>Creando el proyecto</h2>
+<p>Para crear la aplicación de spark lo que se necesita básicamente es empaquetar la lógica y las dependencias necesarias utilizando cosas como <a href="https://www.scala-sbt.org/"><strong>sbt</strong></a> o con <a href="https://gradle.org/"><strong>gradle</strong></a>, yo voy a usar gradle. Una cosa que ayuda bastante es utilizar un IDE adecuado para esto, yo voy a usar <a href="https://www.jetbrains.com/idea/">Intellij Idea</a>.</p>
+<div id="instalar-gradle" class="section level3">
+<h3>Instalar gradle</h3>
+<p>En el Intellij Idea podemos decir que use gradle como gestor de dependencias y para empaquetar y el ya se encarga de bajar una versión de gradle que usará en el proyecto, aunque también es fácil hacer <code>sudo apt install gradle</code> en ubuntu por ejemplo.</p>
+</div>
+<div id="estructuras-de-carpetas-y-ficheros" class="section level3">
+<h3>Estructuras de carpetas y ficheros</h3>
+<p>En mi carpeta de proyecto que he llamado <code>predict_binary_h2o</code> tengo los siguientes archivos</p>
+<ul>
+<li>build.gradle</li>
+<li>settings.gradle</li>
+<li>gradle.properties</li>
+</ul>
+<p>Y mi fichero principal con la clase se llama <code>BinaryModels.scala</code> y está en la ruta <code>src/main/scala/com/h2ospark/</code></p>
+<p><img src="/post/2019-03-12-productivizando-modelos-binarios-con-h20_files/Selección_116.png" /></p>
+</div>
+<div id="ficheros" class="section level3">
+<h3>Ficheros</h3>
+<p>En <code>settings.gradle</code> sólo tengo el nombre del proyecto.</p>
+<pre class="scala"><code>rootProject.name = &#39;binary_h2o&#39;
+</code></pre>
+<p>En <code>gradle.properties</code> tengo guardadas el número de versión de las librerías que luego especificaremos en <code>build.gradle</code></p>
+<pre class="scala"><code>
+# Artifact origins
+
+# Dependency versions
+scala_major         = 2.11
+scala_minor         = 8
+spark_version       = 2.3.0
+hadoop_version      = 2.6.0
+rules_version       = 1.4.0
+joda_version        = 2.9.9
+holden_version      = 2.3.0_0.10.0
+scalatest_version   = 3.0.4
+typesafe_version    = 1.3.1
+scopt_version       = 3.5.0
+h2oProjectVersion   = 3.22.1.1
+</code></pre>
+<p>En el fichero <code>build.gradle</code> es dónde indicamos qué librerías vamos a usar en nuestro proyecto y cuales queremos que se compilen de forma que cuando hagamos un <code>gradle build</code> nos las incluya en el <code>jar</code> final</p>
+<pre class="scala"><code>/*
+ * This file was generated by the Gradle &#39;init&#39; task.
+ *
+ * This is a general purpose Gradle build.
+ * Learn how to create Gradle builds at https://guides.gradle.org/creating-new-gradle-builds/
+ */
+group &#39;com.h2ospark&#39;
+version &#39;1.0.1-SNAPSHOT&#39;
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+}
+
+
+//apply plugin: &#39;java&#39;
+apply plugin: &#39;scala&#39;
+apply plugin: &#39;maven&#39;
+
+
+
+
+repositories {
+    mavenCentral()
+    maven {
+        url &quot;http://h2o-release.s3.amazonaws.com/h2o/rel-xu/4/maven/repo/&quot;
+    }
+}
+
+configurations {
+    master
+    all*.exclude group: &#39;javax.servlet&#39;, module: &#39;servlet-api&#39;
+}
+
+
+
+dependencies {
+
+    compileOnly &quot;org.scala-lang:scala-library:$scala_major.$scala_minor&quot;
+    compileOnly &quot;org.scala-lang:scala-reflect:$scala_major.$scala_minor&quot;
+    compileOnly &quot;org.apache.spark:spark-sql_$scala_major:$spark_version&quot;
+    compileOnly &quot;org.apache.spark:spark-core_$scala_major:$spark_version&quot;
+    compileOnly &quot;org.apache.spark:spark-hive_$scala_major:$spark_version&quot;
+    
+    compile &quot;joda-time:joda-time:$joda_version&quot;
+    compile &quot;org.joda:joda-convert:1.8&quot;
+    compile &quot;com.typesafe:config:$typesafe_version&quot;
+    compile &quot;com.github.scopt:scopt_$scala_major:$scopt_version&quot;
+    compile &quot;com.databricks:spark-csv_$scala_major:1.5.0&quot;
+    compile &quot;org.scala-lang:scala-compiler:$scala_major.$scala_minor&quot;
+    compile &quot;ai.h2o:h2o-genmodel:$h2oProjectVersion&quot;
+
+    compileOnly &#39;com.esotericsoftware.kryo:kryo:2.21&#39;
+
+
+    testCompile &quot;com.holdenkarau:spark-testing-base_$scala_major:$holden_version&quot;
+    testCompile &quot;org.scalatest:scalatest_$scala_major:$scalatest_version&quot;
+    testCompile &quot;org.apache.spark:spark-hive_$scala_major:$spark_version&quot;
+    testCompile &quot;com.holdenkarau:spark-testing-base_$scala_major:$holden_version&quot;
+    testCompile &quot;org.apache.spark:spark-sql_$scala_major:$spark_version&quot;
+    testCompile &quot;org.apache.spark:spark-core_$scala_major:$spark_version&quot;
+    testCompile &quot;org.apache.hadoop:hadoop-client:$hadoop_version&quot;
+
+}
+
+jar {
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+
+
+//run scala tests. These are not automatically picked up by gradle,
+task testScala(dependsOn: [&#39;testClasses&#39;], type: JavaExec) {
+    main = &#39;org.scalatest.tools.Runner&#39;
+    args = [&#39;-R&#39;, &#39;build/classes/test&#39;, &#39;-o&#39;]
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+task testScalaUnit(dependsOn: [&#39;testClasses&#39;], type: JavaExec) {
+    main = &#39;org.scalatest.tools.Runner&#39;
+    args = [&#39;-R&#39;, &#39;build/classes/test&#39;, &#39;-o&#39;, &#39;-n&#39;, &#39;UTest&#39;]
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+task testScalaIntegration(dependsOn: [&#39;testClasses&#39;], type: JavaExec) {
+    main = &#39;org.scalatest.tools.Runner&#39;
+    args = [&#39;-R&#39;, &#39;build/classes/test&#39;, &#39;-o&#39;, &#39;-n&#39;, &#39;ITest&#39;]
+    classpath = sourceSets.test.runtimeClasspath
+}
+</code></pre>
+<p>Como partes importantes del contenido de este fichero, la de añadir el repo de h2o en maven y la de que compile la librería de h2o para poder predecir <code>compile &quot;ai.h2o:h2o-genmodel:$h2oProjectVersion&quot;</code>, y la parte de construir el jar dónde incluya esas librerías</p>
+<pre><code>jar {
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}</code></pre>
+</div>
+<div id="logica-en-spark" class="section level3">
+<h3>Lógica en spark</h3>
+<p>En el fichero <code>src/main/scala/com/h2ospark/BinaryModels.scala</code> es dónde está implementada la clase principal que incorpora la lógica de predicción de con spark, básicamente la misma que vimos en el post de <a href="https://muestrear-no-es-pecado.netlify.com/2019/01/29/jugando-con-h2o/">jugando con h2o</a></p>
+<p>Una cosa importante, el nombre de la clase debe coincidir con el nombre del fichero.</p>
+<p>Contenido fichero</p>
+<pre class="scala"><code>
+package com.h2ospark
+
+import org.apache.spark.sql.SparkSession
+
+import hex.genmodel.easy.{EasyPredictModelWrapper, RowData}
+import hex.genmodel.MojoModel
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.SaveMode
+
+object BinaryModels {
+
+  def main(args: Array[String])
+  {
+
+    // args(0) : path ruta modelo h2o de regresion
+    // args(1) : path completo tablon a predecir
+    // args(2) : path completo tablon_predict
+
+    val modelPath = args(0)
+    val tableIn = args(1)
+    val tableOut = args(2)
+
+
+    val spark = SparkSession.builder
+    //  .master(&quot;local[*]&quot;)
+      .appName(&quot;binomial_predict&quot;)
+      .getOrCreate()
+    import spark.implicits._
+
+
+    val tabla_origin = spark.table(tableIn)
+
+    // cast all columns to string for h2o compatibility
+    val tabla = tabla_origin.select(tabla_origin.columns.map(c =&gt; col(c).cast(StringType)) : _*)
+
+    // Import MOJO model
+    val mojo = MojoModel.load(modelPath)
+
+    val easyModel = new EasyPredictModelWrapper(
+      new EasyPredictModelWrapper.Config().
+        setModel(mojo).
+        setConvertUnknownCategoricalLevelsToNa(true).
+        setConvertInvalidNumbersToNa(true))
+
+    val header = tabla.columns
+
+    // Predict and save as dataframe
+    val dfScore = tabla.map {
+      x =&gt;
+        val r = new RowData
+        header.indices.foreach(idx =&gt; r.put(header(idx), x.getAs[String](idx) ))
+        val score = easyModel.predictBinomial(r).classProbabilities
+        (x.getAs[String](0), score(1))
+    }.toDF(&quot;columna1&quot;,&quot;predict&quot;)
+
+    // Print Schema and show datos
+    dfScore.printSchema
+    dfScore.show()
+
+    // Save in a specific table
+    dfScore.write.mode(SaveMode.Overwrite).saveAsTable(tableOut)
+  }
+}
+</code></pre>
+<p>Cómo veis, la lógica es bastante sencilla, se le pasan mediante argumentos el path del modelo, el nombre de la tabla hive dónde está el tablón a predecir y el nombre de la tabla hive dónde queremos que salve las predicciones. (Primera columna del tablón y la probabilidad estimada.)</p>
+<p>Pues si todo va bien, construimos el jar definitivo con la orden <code>./gradlew build</code> y se habrá creado nuestro jar, en mi caso en <code>/home/jose/IdeaProjects/predict_binary_h2o_local/build/libs/binary_h2o-1.0.1-SNAPSHOT.jar</code></p>
+<p><img src="/post/2019-03-12-productivizando-modelos-binarios-con-h20_files/Selección_117.png" /></p>
+<p>Y listo, ya podemos entrenar un modelo de clasificación binaria con h2o, ya sea un glm o un gbm por ejemplo, guardar el modelo generado tal y como contaba en el post anterior y si tenemos una tabla a predecir en hive con las mismos nombres de columnas y tipo del tablón con el que hemos entrenado podemos predecir en un cluster de Spark que no tenga h2o utilizando este jar. La gracia de esto, es que en principio ya no tendríamos que hacer de nuevo el proceso de crear el jar en gradle, tan sólo necesitaríamos el modelo entrenado en h2o en formato zip.</p>
+<p>Un ejemplo de ejecución sería así, si estamos en un nodo frontera con acceso a spark y tenemos todos los ficheros (el jar y el zip ) en el directorio dónde estamos.</p>
+<pre><code>spark-submit --class com.example.BinaryModels --master yarn --num-executors 20 --executor-cores 5 --driver-memory 2G --executor-memory 10G   binary_h2o-1.0.0-SNAPSHOT.jar mi_modelo_h2o_entrenado.zip default.tablon_to_predict resultados.predicciones_modelo
+</code></pre>
+<p>Por si os sirve os dejo el jar <a href="/post/2019-03-12-productivizando-modelos-binarios-con-h20_files/binary_h2o-1.0.1-SNAPSHOT.jar">aquí</a> para que hagáis pruebas, y en este <a href="https://github.com/joscani/predict_binary_h2o/tree/develop"><strong>repo</strong></a> están los archivos mínimos para generar el jar con gradle.</p>
+<p>Evidentemente esto es sólo un ejemplo de cómo hacer una aplicación mínima de Spark, le faltan muchas cosas como escribir los test unitarios y alguna cosa más, pero el jar está probado ya en un cluster con spark y con diferentes modelos sobre distintos datos y funciona.</p>
+</div>
+</div>
