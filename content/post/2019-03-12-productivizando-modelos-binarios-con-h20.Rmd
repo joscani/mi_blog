@@ -285,9 +285,9 @@ Pues si todo va bien, construimos el jar definitivo con la orden `./gradlew buil
 ![](/post/2019-03-12-productivizando-modelos-binarios-con-h20_files/Selección_117.png)
 
 
-Y listo, ya podemos entrenar un modelo de clasificación binaria con h2o, ya sea un glm o un gbm por ejemplo, guardar el modelo generado tal y como contaba en el post anterior y si tenemos una tabla a predecir en hive con las mismos nombres de columnas y tipo del tablón con el que hemos entrenado podemos predecir en un cluster de Spark que no tenga h2o utilizando este jar. La gracia de esto, es que en principio ya no tendríamos que hacer de nuevo el proceso de crear el jar en gradle, tan sólo necesitaríamos el modelo entrenado en h2o en formato zip.
+Y listo, ya podemos entrenar un modelo de clasificación binaria con h2o, ya sea un glm o un gbm por ejemplo, guardar el modelo generado tal y como contaba en el post anterior y si tenemos una tabla a predecir en hive con las mismos nombres de columnas y tipo del tablón con el que hemos entrenado podemos predecir en un cluster de Spark que no tenga h2o utilizando este jar. La gracia de esto, es que en principio, ya no tendríamos que hacer de nuevo el proceso de crear el jar en gradle, tan sólo necesitaríamos el modelo entrenado en h2o en formato zip.
 
-Un ejemplo de ejecución sería así, si estamos en un nodo frontera con acceso a spark y tenemos todos los ficheros (el jar y el zip ) en el directorio dónde estamos.
+Un ejemplo de ejecución en un nodo frontera con acceso a spark y dónde tenemos todos los ficheros (el jar y el zip ) en el directorio dónde lo lanzamos sería este.
 
 
 ```
