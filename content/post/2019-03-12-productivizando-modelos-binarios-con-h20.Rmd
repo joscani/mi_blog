@@ -291,7 +291,7 @@ Un ejemplo de ejecución en un nodo frontera con acceso a spark y dónde tenemos
 
 
 ```
-spark-submit --class com.example.BinaryModels --master yarn --num-executors 20 --executor-cores 5 --driver-memory 2G --executor-memory 10G   binary_h2o-1.0.0-SNAPSHOT.jar mi_modelo_h2o_entrenado.zip default.tablon_to_predict resultados.predicciones_modelo
+spark-submit --class com.h2ospark.BinaryModels --master yarn --num-executors 20 --executor-cores 5 --driver-memory 2G --executor-memory 10G   binary_h2o-1.0.0-SNAPSHOT.jar mi_modelo_h2o_entrenado.zip default.tablon_to_predict resultados.predicciones_modelo
 
 ```
 

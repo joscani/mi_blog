@@ -30,13 +30,13 @@ starwars_tbl</code></pre>
 ##     mass height hair_color    birth_year
 ##    &lt;dbl&gt;  &lt;int&gt; &lt;chr&gt;              &lt;dbl&gt;
 ##  1    77    172 blond               19  
-##  2    75    167 NA                 112  
-##  3    32     96 NA                  33  
+##  2    75    167 &lt;NA&gt;               112  
+##  3    32     96 &lt;NA&gt;                33  
 ##  4   136    202 none                41.9
 ##  5    49    150 brown               19  
 ##  6   120    178 brown, grey         52  
 ##  7    75    165 brown               47  
-##  8    32     97 NA                 NaN  
+##  8    32     97 &lt;NA&gt;               NaN  
 ##  9    84    183 black               24  
 ## 10    77    182 auburn, white       57  
 ## # … with more rows</code></pre>
@@ -65,8 +65,11 @@ write_csv(collect(test), path = &quot;test_spark.csv&quot;)</code></pre>
 <p>Vamos a utilizar un modelo <em>gbm</em> de spark, huelga decir que los modelos gbm en spark están implementados de manera subóptima por ser amable, para este tipo de modelos es mucho mejor usar H2O.</p>
 <pre class="r"><code>m_gbm &lt;- train %&gt;% ml_gbt_regressor(height ~ mass + birth_year)</code></pre>
 <p>Y ya podemos utilizar el modelo para predecir</p>
-<pre class="r"><code>prediccion &lt;- test %&gt;% sdf_predict(m_gbm)
-prediccion</code></pre>
+<pre class="r"><code>prediccion &lt;- test %&gt;% sdf_predict(m_gbm)</code></pre>
+<pre><code>## Warning: &#39;sdf_predict&#39; is deprecated.
+## Use &#39;ml_predict&#39; instead.
+## See help(&quot;Deprecated&quot;)</code></pre>
+<pre class="r"><code>prediccion</code></pre>
 <pre><code>## # Source: spark&lt;?&gt; [?? x 5]
 ##     mass height hair_color    birth_year prediction
 ##    &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;              &lt;dbl&gt;      &lt;dbl&gt;
@@ -76,8 +79,8 @@ prediccion</code></pre>
 ##  4    49    150 brown               19        170. 
 ##  5    65    163 none                87.6      183. 
 ##  6    68    160 none                87.6      183. 
-##  7    74    173 NA                  44        169. 
-##  8    75    167 NA                 112        199. 
+##  7    74    173 &lt;NA&gt;                44        169. 
+##  8    75    167 &lt;NA&gt;               112        199. 
 ##  9    77    182 auburn, white       57        170. 
 ## 10    79    188 brown               87.6      182. 
 ## # … with more rows</code></pre>
