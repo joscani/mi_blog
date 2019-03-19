@@ -109,14 +109,16 @@ summary(model)
 
 
 ```{r}
-model %>% deepviz::plot_model()
+model %>% 
+  deepviz::plot_model()
 ```
 
 Compilamos el modelo, eligiendo que lo ajuste por gradiente descendente estocástico
 
 ```{r}
 
-model %>% compile(loss = "mean_squared_error", optimizer = "sgd", metric="accuracy") 
+model %>%
+  compile(loss = "mean_squared_error", optimizer = "sgd", metric="accuracy") 
 
 
 ```
@@ -127,7 +129,13 @@ Ajustamos el modelo
 ```{r}
 inputVariables <- list(as.matrix(df$weekday))
 
-hist <- model %>% fit(x = inputVariables, y = as.matrix(df$ScaledUsers), epochs = 70, batch_size = 2)
+hist <- model %>%
+  fit(
+    x = inputVariables,
+    y = as.matrix(df$ScaledUsers),
+    epochs = 70,
+    batch_size = 2
+  )
 ```
 
 Extraemos la capa de embeddings, y vemos las 3 dimensiones extraídas
@@ -146,9 +154,12 @@ embeddings_wday$name <- c("none", levels(lubridate::wday(df$date, label = T)))
 
 df$weekDayF <- lubridate::wday(df$date, label = T)
 embeddings_wday$lookup <- c("none", levels(df$weekDayF))
-df <- df %>% left_join( embeddings_wday, by= c("weekDayF" = "lookup"))
+df <- df %>% 
+  left_join( embeddings_wday, by= c("weekDayF" = "lookup"))
 
-df %>% select(weekDayF, X1, X2, X3) %>% head()
+df %>% 
+  select(weekDayF, X1, X2, X3) %>%
+  head()
 ```
 
 
