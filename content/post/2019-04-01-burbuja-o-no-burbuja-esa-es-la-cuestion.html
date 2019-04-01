@@ -22,37 +22,42 @@ topics: []
 <p>Vamos a usar la librería gtrendsR que ataca a la API de googleTrends</p>
 <pre class="r"><code>library(gtrendsR)
 library(tidyverse)</code></pre>
-<pre><code>## ── Attaching packages ───────────────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ── Attaching packages ──────────────────────────────── tidyverse 1.2.1 ──</code></pre>
 <pre><code>## ✔ ggplot2 3.1.0       ✔ purrr   0.3.2  
 ## ✔ tibble  2.1.1       ✔ dplyr   0.8.0.1
 ## ✔ tidyr   0.8.3       ✔ stringr 1.4.0  
 ## ✔ readr   1.3.1       ✔ forcats 0.4.0</code></pre>
-<pre><code>## ── Conflicts ──────────────────────────────────────────────────── tidyverse_conflicts() ──
+<pre><code>## ── Conflicts ─────────────────────────────────── tidyverse_conflicts() ──
 ## ✖ dplyr::filter() masks stats::filter()
 ## ✖ dplyr::lag()    masks stats::lag()</code></pre>
 <pre class="r"><code>library(patchwork)</code></pre>
-<pre class="r"><code>hype_words_all &lt;- gtrends(c(&quot;big data&quot;,&quot;machine learning&quot;,&quot;artificial intelligence&quot;,&quot;deep learning&quot;), time = &quot;today+5-y&quot;)
+<p>A petición de lector del blog, compañero de trabajo y sin embargo amigo pongo las búsquedas desde más atrás, pero sólo para las globales</p>
+<pre class="r"><code>today &lt;- Sys.Date()
+fecha_inicio &lt;- &quot;2009-01-01&quot;
+intervalo &lt;- paste(fecha_inicio, today, sep = &quot; &quot;)
+
+hype_words_all &lt;- gtrends(c(&quot;big data&quot;,&quot;machine learning&quot;,&quot;artificial intelligence&quot;,&quot;deep learning&quot;), time = intervalo)
 
 
-hype_words_spain &lt;- gtrends(c(&quot;big data&quot;,&quot;machine learning&quot;,&quot;artificial intelligence&quot;,&quot;deep learning&quot;), geo=&quot;ES&quot;, time = &quot;today+5-y&quot;)</code></pre>
+# hype_words_spain &lt;- gtrends(c(&quot;big data&quot;,&quot;machine learning&quot;,&quot;artificial intelligence&quot;,&quot;deep learning&quot;), geo=&quot;ES&quot;, time = intervalo)</code></pre>
 <pre class="r"><code>interest_over_time_all &lt;-  hype_words_all$interest_over_time 
 interest_over_time_all &lt;- interest_over_time_all %&gt;% filter(hits &gt;0 &amp; !is.na(hits))
 
-
-interest_over_time_spain &lt;-  hype_words_spain$interest_over_time 
-interest_over_time_spain &lt;- interest_over_time_spain %&gt;% filter(hits &gt;0 &amp; !is.na(hits))</code></pre>
+# 
+# interest_over_time_spain &lt;-  hype_words_spain$interest_over_time 
+# interest_over_time_spain &lt;- interest_over_time_spain %&gt;% filter(hits &gt;0 &amp; !is.na(hits))</code></pre>
 <pre class="r"><code>p1 &lt;- ggplot(interest_over_time_all, aes(x = date, y = hits, color=keyword)) +
   geom_point(size = rel(0.5)) +
   geom_smooth(span = 0.8) +
-  labs(title=&quot;World: Interest last five years&quot;, y = &quot;relative interest&quot;)
+  labs(title=&quot;World: Interest last ten years&quot;, y = &quot;relative interest&quot;)
 
-p2 &lt;- ggplot(interest_over_time_spain, aes(x = date, y = hits, color=keyword)) +
-  geom_point(size = rel(0.5)) +
-  geom_smooth(span = 0.8) +
-  labs(title=&quot;Spain: Interest last five years&quot;, y = &quot;relative interest&quot;)
-
-p1 + p2  + plot_layout(ncol = 1)</code></pre>
-<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;
-## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
+p1</code></pre>
+<pre><code>## `geom_smooth()` using method = &#39;loess&#39; and formula &#39;y ~ x&#39;</code></pre>
 <p><img src="/post/2019-04-01-burbuja-o-no-burbuja-esa-es-la-cuestion_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<pre class="r"><code># p2 &lt;- ggplot(interest_over_time_spain, aes(x = date, y = hits, color=keyword)) +
+#   geom_point(size = rel(0.5)) +
+#   geom_smooth() +
+#   labs(title=&quot;Spain: Interest last five years&quot;, y = &quot;relative interest&quot;)
+
+# p1 + p2  + plot_layout(ncol = 1)</code></pre>
 <p>Pues ¿qué les parece? ¿Vamos camino de un burbuja o ya estamos en ella?</p>

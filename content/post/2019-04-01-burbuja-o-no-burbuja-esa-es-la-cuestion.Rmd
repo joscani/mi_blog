@@ -32,11 +32,18 @@ library(tidyverse)
 library(patchwork)
 ```
 
+
+A petición de lector del blog, compañero de trabajo y sin embargo amigo pongo las búsquedas desde más atrás, pero sólo para las globales 
+
 ```{r}
-hype_words_all <- gtrends(c("big data","machine learning","artificial intelligence","deep learning"), time = "today+5-y")
+today <- Sys.Date()
+fecha_inicio <- "2009-01-01"
+intervalo <- paste(fecha_inicio, today, sep = " ")
+
+hype_words_all <- gtrends(c("big data","machine learning","artificial intelligence","deep learning"), time = intervalo)
 
 
-hype_words_spain <- gtrends(c("big data","machine learning","artificial intelligence","deep learning"), geo="ES", time = "today+5-y")
+# hype_words_spain <- gtrends(c("big data","machine learning","artificial intelligence","deep learning"), geo="ES", time = intervalo)
 ```
 
 
@@ -44,9 +51,9 @@ hype_words_spain <- gtrends(c("big data","machine learning","artificial intellig
 interest_over_time_all <-  hype_words_all$interest_over_time 
 interest_over_time_all <- interest_over_time_all %>% filter(hits >0 & !is.na(hits))
 
-
-interest_over_time_spain <-  hype_words_spain$interest_over_time 
-interest_over_time_spain <- interest_over_time_spain %>% filter(hits >0 & !is.na(hits))
+# 
+# interest_over_time_spain <-  hype_words_spain$interest_over_time 
+# interest_over_time_spain <- interest_over_time_spain %>% filter(hits >0 & !is.na(hits))
 ```
 
 
@@ -55,14 +62,15 @@ interest_over_time_spain <- interest_over_time_spain %>% filter(hits >0 & !is.na
 p1 <- ggplot(interest_over_time_all, aes(x = date, y = hits, color=keyword)) +
   geom_point(size = rel(0.5)) +
   geom_smooth(span = 0.8) +
-  labs(title="World: Interest last five years", y = "relative interest")
+  labs(title="World: Interest last ten years", y = "relative interest")
 
-p2 <- ggplot(interest_over_time_spain, aes(x = date, y = hits, color=keyword)) +
-  geom_point(size = rel(0.5)) +
-  geom_smooth(span = 0.8) +
-  labs(title="Spain: Interest last five years", y = "relative interest")
+p1
+# p2 <- ggplot(interest_over_time_spain, aes(x = date, y = hits, color=keyword)) +
+#   geom_point(size = rel(0.5)) +
+#   geom_smooth() +
+#   labs(title="Spain: Interest last five years", y = "relative interest")
 
-p1 + p2  + plot_layout(ncol = 1)
+# p1 + p2  + plot_layout(ncol = 1)
 ```
 
 Pues ¿qué les parece? ¿Vamos camino de un burbuja o ya estamos en ella?
