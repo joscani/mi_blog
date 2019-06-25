@@ -1,0 +1,60 @@
+---
+title: Malditas proporciones pequeñas II
+author: jlcr
+date: '2019-06-25'
+slug: malditas-proporciones-pequeñas-ii
+categories: []
+tags: []
+description: ''
+topics: []
+---
+
+
+
+<p>¿Cuál sería el tamaño muestral mínimo para estimar un incremento del 15% en una proporción de digamos 0.004?</p>
+<p>Pues si nos vamos a la teoría clásica de los test de hipótesis lo que nos interesa es minimizar los errore tipo I y tipo II. Recordemos lo que eran.</p>
+<ul>
+<li>Error tipo I : Error de falso positivo, decir que hay diferencias
+cuando en realidad no las hay (H0 es cierta pero digo que no)</li>
+<li>Error tipo II: Error falso negativo, error que cometo al decir que no hay diferencias cuando en realidad si las hay. (H0 es falsa pero decimos que es verdadera)</li>
+</ul>
+<div class="figure">
+<img src="/post/2019-06-25-malditas-proporciones-pequeñas-ii_files/error_tipo1_tipo2_pregnant.jpg" alt="errores" />
+<p class="caption">errores</p>
+</div>
+<p>Si utilizamos el paquete de R <a href="https://cran.r-project.org/web/packages/pwr/vignettes/pwr-vignette.html"><code>pwr</code></a> podemos calcularlo para un error tipo I, (el alpha de siempre) de 0.05 y una potencia (1 - error tipo II) de 0.9</p>
+<pre class="r"><code>p1 &lt;- 0.004
+p2 &lt;- p1 * 1.15
+library(pwr)
+
+potencia_0.9 &lt;- pwr.p.test(ES.h(p1=p1, p2= p2),
+                           sig.level= 0.05, power = 0.9) 
+plot(potencia_0.9)</code></pre>
+<p><img src="/post/2019-06-25-malditas-proporciones-peque%C3%B1as-ii_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<p>Y nos sale que el tamaño de muestra mínimo está en torno a 125 mil .</p>
+<p>Hay otras librerías para calcular dicho tamaño muestral, por ejemplo
+<a href="https://cran.r-project.org/web/packages/SampleSizeProportions/index.html"><code>SampleSizeProportions</code></a> que según pone en la documentación lo hace teniendo en cuenta el intervalo de credibilidad deseado.
+Tengo que mirar mejor esta librería.</p>
+<pre class="r"><code>library(SampleSizeProportions)
+
+len &lt;-  (p1 * 1.15 - p1/1.15)
+c1 &lt;- 40
+c2 &lt;- 46
+d1 &lt;- 9960
+d2 &lt;- 9954
+
+propdiff.modwoc(len = len, c1 = c1, d1 = d1, c2 = c2, d2 = d2)</code></pre>
+<pre><code>## [1] 120910 120910</code></pre>
+<p>Y sale unos 120 mil para cada grupo.</p>
+<p>O también podemos ver cosas como está que comentan los amigos de
+WinVector, <a href="http://www.win-vector.com/blog/2019/06/estimating-rates-using-probability-theory-chalk-talk/"><strong>aquí</strong></a> o <a href="http://www.win-vector.com/blog/2013/12/sample-size-and-power-for-rare-events/"><strong>aquí</strong></a></p>
+<pre class="r"><code>estimateT &lt;- function(lowProb,difference,errorProb) {
+  -log(errorProb/2)*lowProb/(difference^2)
+}
+
+# detectar diferencias de 15%
+lowProb &lt;- 0.004
+incremento &lt;- 0.15
+estimateT(lowProb, lowProb*incremento,  0.0006 )</code></pre>
+<pre><code>## [1] 90130.31</code></pre>
+<p>Y nos sale un tamaño aproximado de 90 mil. Sea como fuere el tener que determinar tamaños de muestra para poder medir variaciones de un 15% en proporciones pequeñas implica tener muestras de tamaño 100000, así que como dice el título, ¡malditas proporciones pequeñas!</p>
