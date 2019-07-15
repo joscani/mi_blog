@@ -1,0 +1,166 @@
+---
+title: Codificación parcial y python
+author: jlcr
+date: '2019-07-15'
+categories:
+  - ciencia de datos
+  - estadística
+tags:
+  - estadística
+  - R python
+slug: codificación-parcial
+---
+
+
+
+<p>O como se conoce en estos tiempos modernos <strong>one hot encoding</strong>. En realidad se trata simplemente de cómo codificar una variable categórica en un conjunto de números que un algoritmo pueda utilizar.</p>
+<p>Ya hablé de esto mismo en el post <strong><a href="https://muestrear-no-es-pecado.netlify.com/2019/02/27/codificacion-de-variables-categoricas-i/">codificación de variables categóricas I</a></strong></p>
+<p>Básicamente, la codificación parcia lo que hace es crearse tantas variables indicadoras como niveles tengo en mi variable menos 1.</p>
+<p>Ejemplo.
+Construimos un conjunto de datos simple, con 3 variables</p>
+<pre class="r"><code>set.seed(155)
+
+x1 &lt;- rnorm(n = 100, mean = 4, sd = 1.5 )
+x2_cat &lt;- factor(rep(c(&quot;a&quot;,&quot;b&quot;,&quot;c&quot;,&quot;d&quot;),  25 ))
+y &lt;- numeric(length = 100)
+
+# Construimos artificialmente relación entre x e y
+y &lt;- 2 +  4 * x1 + rnorm(25, 0, 1)
+
+# cambiamos &quot;el intercept&quot; según la variable categórica
+
+y[x2_cat == &quot;a&quot;] &lt;- y[x2_cat == &quot;a&quot;] + 8
+y[x2_cat == &quot;b&quot;] &lt;- y[x2_cat == &quot;b&quot;] - 5
+y[x2_cat == &quot;c&quot;] &lt;- y[x2_cat == &quot;c&quot;] + 3
+y[x2_cat == &quot;d&quot;] &lt;- y[x2_cat == &quot;d&quot;] - 3
+
+dat &lt;- data.frame(y, x1, x2_cat)
+head(dat)</code></pre>
+<pre><code>##          y       x1 x2_cat
+## 1 31.00555 5.200100      a
+## 2 19.13571 5.061407      b
+## 3 20.49049 3.888438      c
+## 4 17.93157 4.978832      d
+## 5 25.23501 3.989047      a
+## 6 21.86234 6.272138      b</code></pre>
+<p>En R al definir x2_cat como un factor él ya sabe que para ciertos métodos (por ejemplo una regresión) hay que codificar esa variable y por defecto utiliza la codificación parcial. Con la función <em>contrasts</em> vemos como lo hace.</p>
+<pre class="r"><code>contrasts(dat$x2_cat)</code></pre>
+<pre><code>##   b c d
+## a 0 0 0
+## b 1 0 0
+## c 0 1 0
+## d 0 0 1</code></pre>
+<p>Y en las columnas tenemos las 3 variables indicadoras que ha construido. ¿Por qué 3? pues muy fácil, puesto que la “a” se puede codificar con el valor 0 en las tres variables indicadoras.
+Esto que parece una obviedad evita problemas de colinealidad en los algoritmos de regresión por ejemplo.</p>
+<pre class="r"><code>fit1 &lt;-  lm(y ~ x1 + x2_cat, data = dat)
+summary(fit1)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = y ~ x1 + x2_cat, data = dat)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -1.55549 -0.67355 -0.00943  0.59814  1.99480 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  10.12924    0.28393   35.67   &lt;2e-16 ***
+## x1            3.94536    0.06034   65.39   &lt;2e-16 ***
+## x2_catb     -12.95740    0.26148  -49.55   &lt;2e-16 ***
+## x2_catc      -4.97712    0.25845  -19.26   &lt;2e-16 ***
+## x2_catd     -10.98359    0.25785  -42.60   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 0.9094 on 95 degrees of freedom
+## Multiple R-squared:  0.9855, Adjusted R-squared:  0.9849 
+## F-statistic:  1616 on 4 and 95 DF,  p-value: &lt; 2.2e-16</code></pre>
+<p>¿Qué hubiera pasado si hubiéramos tratado con 4 variables indicadoras?</p>
+<pre class="r"><code>dat2 &lt;- dat
+dat2$ind1 &lt;- ifelse(dat$x2_cat == &quot;a&quot;, 1, 0)
+dat2$ind2 &lt;- ifelse(dat$x2_cat == &quot;b&quot;, 1, 0)
+dat2$ind3 &lt;- ifelse(dat$x2_cat == &quot;c&quot;, 1, 0)
+dat2$ind4 &lt;- ifelse(dat$x2_cat == &quot;d&quot;, 1, 0)</code></pre>
+<pre class="r"><code>head(dat2[dat2$x2_cat==&quot;d&quot;, ],3)</code></pre>
+<pre><code>##           y       x1 x2_cat ind1 ind2 ind3 ind4
+## 4  17.93157 4.978832      d    0    0    0    1
+## 8   9.30838 2.736958      d    0    0    0    1
+## 12 12.31765 2.943479      d    0    0    0    1</code></pre>
+<p>Si metemos ahora esas variables en el modelo</p>
+<pre class="r"><code>fit2 &lt;-  lm(y ~ x1 +  ind2 + ind3 + ind4 + ind1, data = dat2)
+summary(fit2)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = y ~ x1 + ind2 + ind3 + ind4 + ind1, data = dat2)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -1.55549 -0.67355 -0.00943  0.59814  1.99480 
+## 
+## Coefficients: (1 not defined because of singularities)
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  10.12924    0.28393   35.67   &lt;2e-16 ***
+## x1            3.94536    0.06034   65.39   &lt;2e-16 ***
+## ind2        -12.95740    0.26148  -49.55   &lt;2e-16 ***
+## ind3         -4.97712    0.25845  -19.26   &lt;2e-16 ***
+## ind4        -10.98359    0.25785  -42.60   &lt;2e-16 ***
+## ind1               NA         NA      NA       NA    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 0.9094 on 95 degrees of freedom
+## Multiple R-squared:  0.9855, Adjusted R-squared:  0.9849 
+## F-statistic:  1616 on 4 and 95 DF,  p-value: &lt; 2.2e-16</code></pre>
+<p>Y vemos que como hay colinealidad R no estima el coeficiente de una de las variables indicadoras y hasta nos avisa con el mensaje <code>Coefficients: (1 not defined because of singularities)</code></p>
+<p>Pues la verdad es que mola que R sepa como tratar las categóricas si las has definido como <code>factor</code> pero también hace que la gente se olvide de que lo que en realidad hace es la codificación parcial. Hablando de esto con un colega salió a colación que en python hay que explicitar la codificación y que quizá eso sea bueno porque así se sabe lo que se está haciendo y no hay lugar a dudas. Hasta aquí todo correcto, salvo que leyendo la documentación de <a href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.get_dummies.html">pandas get_dummies</a> resulta que por defecto construye tantas variables indicadoras como categorías y sólo tiene como opcional lo de quitar la primera con el parámetro <code>drop_first</code>, total me dije, no pasa nada, veamos como lo hace <code>scikit learn</code> y nada, resulta que por defecto también deja todas <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a>. Reflexionando me dije, bueno, pues entonces cuando haga una regresión lineal con sklearn si uso las opciones por defecto de codificar las categóricas pues me debe saltar lo mismo que en R, es decir que hay un coeficiente que no puede estimar, pero resulta que sklearn hace un pelín de trampa y no salta el error, y no salta porque en sklearn la regresión lineal no ajusta una regresión lineal clásica, sino que por defecto y sin que tú lo pidas te hace una regresión regularizada y entonces no salta ese problema.</p>
+<p>Pues la verdad , ¿qué puedo decir? no me hace gracia que por defecto no me quite la variable indicadora que sobra ni que haga regresión con regularización sin yo decirle nada.</p>
+<p>En fin, veamos el ejemplo con python, aprovecho que escribo en un rmarkdown y puedo pasar objetos de R a python entre chunks sin muchos problemas.</p>
+<pre class="python"><code>import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+dat_py = r.dat
+dat_py.describe()</code></pre>
+<pre><code>##                 y          x1
+## count  100.000000  100.000000
+## mean    18.633855    3.988010
+## std      7.402175    1.540500
+## min     -1.163152    0.315987
+## 25%     14.283915    2.815231
+## 50%     19.325282    3.885684
+## 75%     22.438970    5.062777
+## max     43.075931    8.304381</code></pre>
+<pre class="python"><code>dat_py.x2_cat.value_counts()</code></pre>
+<pre><code>## d    25
+## c    25
+## b    25
+## a    25
+## Name: x2_cat, dtype: int64</code></pre>
+<p>convertimos a dummies con pandas por ejemplo</p>
+<pre class="python"><code>dat_py = pd.get_dummies(data=dat_py)
+print(dat_py.head())</code></pre>
+<pre><code>##            y        x1  x2_cat_a  x2_cat_b  x2_cat_c  x2_cat_d
+## 0  31.005546  5.200100         1         0         0         0
+## 1  19.135715  5.061407         0         1         0         0
+## 2  20.490494  3.888438         0         0         1         0
+## 3  17.931571  4.978832         0         0         0         1
+## 4  25.235006  3.989047         1         0         0         0</code></pre>
+<pre class="python"><code>x_variables = [&#39;x1&#39;, &#39;x2_cat_a&#39;, &#39;x2_cat_b&#39;,&#39;x2_cat_c&#39;,&#39;x2_cat_d&#39;]
+# Selecciono y convierto a numpy array
+X = dat_py[x_variables].values  
+y = dat_py[&#39;y&#39;].values
+X[0:3]</code></pre>
+<pre><code>## array([[5.20010037, 1.        , 0.        , 0.        , 0.        ],
+##        [5.06140731, 0.        , 1.        , 0.        , 0.        ],
+##        [3.88843797, 0.        , 0.        , 1.        , 0.        ]])</code></pre>
+<pre class="python"><code>y[0:3]</code></pre>
+<pre><code>## array([31.00554596, 19.1357146 , 20.49049385])</code></pre>
+<pre class="python"><code>
+lm = LinearRegression()
+fit_python = lm.fit(X,y)
+print(&#39;Intercept: &#39;,fit_python.intercept_)</code></pre>
+<pre><code>## Intercept:  2.899716060541241</code></pre>
+<pre class="python"><code>print(&#39;Coef: &#39;,fit_python.coef_)</code></pre>
+<pre><code>## Coef:  [ 3.94536095  7.22952708 -5.72787734  2.25241099 -3.75406074]</code></pre>
+<p>Y vemos que si estima todos los coeficientes cuando no debería haber podido, esto tiene que ver como he dicho antes con que <code>LinearRegression</code> de sklearn no es la regresión lineal al uso sino que mete regularización.</p>
+<p>Otro día veremos la librería <code>statmodels</code> de python cuya salida nos da una información más rica de los modelos y bastante parecida a lo que estamos acostumbrados con R.</p>
+<p><strong>Nota:</strong> Leyendo la docu de <code>LinearRegression</code> en ningún sitio dice que use regularización así que no alcanzo a entender por qué ha podido estimar todos los coeficientes. A ver si alguno de mis amigos <em>pythonisos</em> me lo aclara.</p>
