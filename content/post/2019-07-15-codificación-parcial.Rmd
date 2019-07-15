@@ -90,7 +90,7 @@ Reflexionando me dije, bueno, pues entonces cuando haga una regresión lineal co
 Pues la verdad , ¿qué puedo decir? no me hace gracia que por defecto no me quite la variable indicadora que sobra ni que haga regresión con regularización sin yo decirle nada.
 
 
-En fin, veamos el ejemplo con python, aprovecho que escribo en un rmarkdown y puedo pasar objetos de R a python entre chunks sin muchos problemas.
+En fin, veamos el ejemplo con python, aprovecho que escribo en un rmarkdown y puedo **[pasar objetos de R a python](https://rstudio.github.io/reticulate/articles/r_markdown.html#python-chunks)** entre chunks sin muchos problemas.
 
 
 ```{python}
