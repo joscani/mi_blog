@@ -1,0 +1,42 @@
+---
+title: Cosas de pandas
+author: jlcr
+date: '2020-02-17'
+slug: cosas-de-pandas
+categories:
+  - R python
+tags:
+  - Python
+description: ''
+topics: []
+---
+
+
+
+<p>Estoy usando Rmarkdown así que primero defino que versión o entorno de python quiero</p>
+<pre class="r"><code>Sys.setenv(RETICULATE_PYTHON = &quot;/usr/bin/python3&quot;)</code></pre>
+<pre class="python"><code>import pandas as pd
+df = pd.DataFrame({&#39;A&#39; : [1, 2, 3, 4], &#39;B&#39; : [4, 3, 2, 1]})
+df</code></pre>
+<pre><code>##    A  B
+## 0  1  4
+## 1  2  3
+## 2  3  2
+## 3  4  1</code></pre>
+<p>El <code>index</code> es autonumérico</p>
+<pre class="python"><code>df.index</code></pre>
+<pre><code>## RangeIndex(start=0, stop=4, step=1)</code></pre>
+<p>Pues ahora viene lo raro, al menos para mí. Si hacemos iloc O:3 me devuelve las 3 primeras filas (como debe ser)</p>
+<pre class="python"><code>df.iloc[0:3,]</code></pre>
+<pre><code>##    A  B
+## 0  1  4
+## 1  2  3
+## 2  3  2</code></pre>
+<p>Pero si hacemos loc poniendo 0:3 me devuelve 4 filas !!!</p>
+<pre class="python"><code>df.loc[0:3, ]</code></pre>
+<pre><code>##    A  B
+## 0  1  4
+## 1  2  3
+## 2  3  2
+## 3  4  1</code></pre>
+<p>¿Algún pythoniso que me pueda aclarar el porqué de este comportamiento?</p>
