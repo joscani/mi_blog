@@ -1,0 +1,118 @@
+---
+title: El virus
+author: jlcr
+date: '2020-03-10'
+slug: el-virus
+categories:
+  - estadística
+tags:
+  - R
+description: ''
+topics: []
+---
+
+En estos tiempos tan asépticos ya no estamos acostumbrados (en algunos países) con agentes patógenos altamente contagiosos como el que llena los titulares de periódicos y televisiones estos días. 
+
+Sin más, vamos a comparar los datos de España e Italia, plagiando con total descaro a mi amigo Carlos Gil que puso este [post](https://www.datanalytics.com/2020/03/09/seguimiento-del-coronavirus-en-tiempo-real-con-r/) de ayer  y en [este](https://www.datanalytics.com/2020/03/10/seguimiento-de-los-nuevos-casos-diarios-de-coronavirus-en-tiempo-real-con-r/) de hoy.
+
+Yo me acabo de enterar de que estoy en cuarentena preventiva por un posible contagio de la mujer de un compañero, así que en casita a teletrabajar unos días. 
+
+
+El código 
+
+```{r}
+# Librerías ----
+library(tidyverse)
+library(leaflet)
+
+# nos bajamos  los datos, actualizados a día de ayer ----
+
+url <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv"
+
+cvirus <- read.table(url, sep = ",", header = T)
+cvirus$Province.State <- NULL
+
+# Pasamos a formato largo ----
+
+cvirus_longer <- cvirus %>%
+  pivot_longer(
+    cols = starts_with("X"),
+    values_to = "casos"
+  )
+
+colnames(cvirus_longer) <- c("país", "Lat", "Long", "fecha", "casos")
+cvirus_longer$fecha <- as.Date(as.character(cvirus_longer$fecha), format = "X%m.%d.%y")
+
+# Nos quedamos con los paises que nos interesan
+cvirus_it_sp <- cvirus_longer %>%
+  filter(país %in% c("Italy", "Spain"))
+
+head(cvirus_it_sp)
+```
+
+
+A pintar.
+
+```{r}
+
+cvirus_it_sp %>%
+  filter(fecha > as.Date("2020-02-23")) %>%
+  ggplot(aes(x = fecha, y = casos, col = país)) +
+  geom_point() +
+  geom_line()
+```
+
+Si quitamos 9 días a la fecha de España vemos que estamso alineados a como estaba Itala en ese día. 
+
+```{r}
+tmp <- cvirus_it_sp
+tmp$fecha[tmp$país == "Spain"] <- tmp$fecha[tmp$país == "Spain"] - 9
+
+tmp %>%
+  filter(fecha > as.Date("2020-02-10")) %>%
+  ggplot(aes(x = fecha, y = casos, col = país)) +
+  geom_line(size = rel(1.2))
+```
+
+Y bueno, sigo plagiando a Carlos.
+
+```{r}
+tmp <- tmp[tmp$fecha > as.Date("2020-02-10"), ]
+
+ggplot(tmp, aes(x = fecha, y = log10(casos), col = país)) +
+  geom_line(size = rel(2))
+```
+
+## Mapa en leaflet
+
+Y ahora un mapita con los datos del último día, del 9 de Marzo en el momento de escribir estas líneas
+
+
+```{r}
+
+cvirus_map_data <- cvirus_longer %>%
+  filter(fecha == max(fecha))
+
+
+pal <- colorNumeric(
+  palette = "Reds",
+  domain = c(-1, log(max(cvirus_map_data$casos + 1)))
+)
+
+
+leaflet(cvirus_map_data) %>%
+  # addProviderTiles('CartoDB.Positron') %>%
+  addProviderTiles("Stamen.Toner") %>%
+  addCircleMarkers(
+    lng = ~Long,
+    lat = ~Lat,
+    label = ~ paste0( país, ": ", casos ),
+    radius = ~ 3 * log( casos + 1 ) ,
+    color = ~ pal(log( casos + 1 ) )
+  ) 
+
+```
+Y me he quedado con ganas de hacer un mapa con `mapview` del estilo de estos, 
+[mapview](https://r-spatial.github.io/mapview/articles/articles/mapview_04-popups.html), pero la verdad es que entre unas cosas y otras hoy ando bastante cansado. Mañana lo hago. 
+
+
