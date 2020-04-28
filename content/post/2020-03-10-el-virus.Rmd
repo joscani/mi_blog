@@ -11,7 +11,7 @@ description: ''
 topics: []
 ---
 
-En estos tiempos tan asépticos ya no estamos acostumbrados (en algunos países),  a tratar con agentes patógenos altamente contagiosos como el que llena los titulares de periódicos y televisiones estos días. 
+En estos tiempos tan asépticos ya no estamos acostumbrados (en algunos países),  a tratar con agentes patógenos altamente contagiosos como el que llena los titulares de periódicos y televisiones estos  días. 
 
 Sin más, vamos a comparar los datos de España e Italia, plagiando con total descaro a mi amigo Carlos Gil que puso este [post](https://www.datanalytics.com/2020/03/09/seguimiento-del-coronavirus-en-tiempo-real-con-r/) de ayer  y en [este](https://www.datanalytics.com/2020/03/10/seguimiento-de-los-nuevos-casos-diarios-de-coronavirus-en-tiempo-real-con-r/) de hoy.
 
