@@ -51,7 +51,7 @@ f3w <- fa(Thurstone,3,n.obs = 213,fm="wls")
 f3w
 ```
 
-
+Diagramas
 
 ```{r}
 fa.diagram(f3w)
