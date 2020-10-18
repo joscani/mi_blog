@@ -20,6 +20,7 @@ slug: lo-del-pca
 <p>Bien, dejando un poco todo eso, el análisis de componentes principales es una técnica de interdependencia que busca describir la relación entre las variables de un conjunto de datos e incluso obtener una reducción de su dimensión (si nos quedamos con k componentes principales siendo k menor que el número de variables del conjunto de datos).</p>
 <p>Las componentes son una combinación lineal de las variables tales que, la primera recoge la dirección de la máxima varianza de los datos, la segunda es aquella que siendo ortogonal a la primera recoge la máxima varianza que no ha recogido la primera y así hasta llegar a tantas componentes como variables originales tienes. Visto de esta forma, no se trata más que de un cambio de base elegida de cierta forma y ahí es dónde interviene la diagonalización de matrices.</p>
 <p>En el blog de <a href="https://www.cienciadedatos.net/">Joaquín Amat</a>, el cual recomiendo encarecidamente, se cuenta todo esto de manera mucho más clara, <a href="https://www.cienciadedatos.net/documentos/35_principal_component_analysis">aquí os lo dejo</a></p>
+<p>Una explicación más algebraica la podemos encontrar en el blog de <a href="https://www.datanalytics.com/2014/04/01/componentes-principales-para-quienes-cursaron-algebra-de-primero-con-aprovechamiento/">Carlos</a></p>
 <p>Las 2 primeras componentes serían algo así como</p>
 <p><span class="math display">\[ \begin{aligned}
 PC1 = \phi_{11}X_1 + \phi_{21}X_2 + \ldots + \phi_{p1}X_p \\

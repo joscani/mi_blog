@@ -21,6 +21,8 @@ Las componentes son una combinación lineal de las variables tales que, la prime
 
 En el blog de [Joaquín Amat](https://www.cienciadedatos.net/), el cual recomiendo encarecidamente, se cuenta todo esto de manera mucho más clara, [aquí os lo dejo](https://www.cienciadedatos.net/documentos/35_principal_component_analysis)
 
+Una explicación más algebraica la podemos encontrar en el blog de [Carlos](https://www.datanalytics.com/2014/04/01/componentes-principales-para-quienes-cursaron-algebra-de-primero-con-aprovechamiento/)
+
 Las 2 primeras componentes serían algo así como
 
 $$ \begin{aligned}
