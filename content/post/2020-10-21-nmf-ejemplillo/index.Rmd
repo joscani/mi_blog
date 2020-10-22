@@ -91,14 +91,14 @@ Podemos utilizar como matriz diagonal la suma de las filas de a, y así obtener
 (d <- diag(rowSums(a)))
 ```
 
-Y podemos hacer $A \approx D \cdot W \cdot H$
+Y podemos hacer $A \approx D \cdot W \cdot H $
 
 
 ```{r}
 d %*% w_hat %*% h_hat
 ```
 
-Que se parece bastante a `w %*% h` , o podríamos usar otra d
+Que se parece bastante a `w %*% h` , o podríamos usar otra *D*, en este caso para obtener qué matriz se obtendría para 10 casos de cada fila. 
 
 ```{r}
 d <-  diag(c(10,10, 10, 10))
