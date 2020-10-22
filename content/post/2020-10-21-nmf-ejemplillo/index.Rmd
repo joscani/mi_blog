@@ -81,7 +81,7 @@ Así, el primer "menú" está compuesto por los "productos" fair, red, etc, en p
 Las filas de *W* a veces se asocian con arquetipos o individuos promedio. Los individuos "blue" tienen esos pesos los dos factores latentes.
 
 En este caso dónde tenemos color de ojos (fila) y color del pelo (columnas), vemos que en las dos distribuciones multinomiales  que hay en sendas filas de `h_hat` (si, eso es lo que son, dos distribuciones multinomiales), la probabilidad de tener el pelo negro es bastante pequeña (tiene que ver con la tabla de contingencia original, hay muy pocos con el pelo negro). 
-Pero vemos que hay un arquetipo, (el de os ojos oscuros) para el cual el peso que da al menú de preferencias 1 (dónde la probabilidad de tener el pelo negro es mayor). Es decir, al final es una mixtura de distribuciones multinomiales.
+Pero vemos que hay un arquetipo, (el de os ojos oscuros) para el cual el peso que da al menú de preferencias dónde la probabilidad de tener el pelo negro sea mayor. Es decir, al final es una mixtura de distribuciones multinomiales.
 
 En realidad lo que hace NMF es descubrir la estructura subyacente de los datos en un espacio de menor dimensión que el original. Bueno, pues con *W* y *H* normalizadas podemos construir una matriz diagonal *D* que simplemente nos genere muestras de individuos y en qué columnas caen.
 
@@ -91,7 +91,7 @@ Podemos utilizar como matriz diagonal la suma de las filas de a, y así obtener
 (d <- diag(rowSums(a)))
 ```
 
-Y podemos hacer $A \approx D \cdot W \cdot H $
+Y podemos hacer $A \approx D \cdot W \cdot H$
 
 
 ```{r}

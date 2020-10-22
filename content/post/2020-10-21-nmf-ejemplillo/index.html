@@ -37,15 +37,15 @@ a</code></pre>
 <pre class="r"><code>w &lt;-  res@fit@W
 h &lt;-  res@fit@H</code></pre>
 <pre class="r"><code>w </code></pre>
-<pre><code>##             [,1]      [,2]
-## blue   229.78817  38.13403
-## light  532.79041  31.05907
-## medium 346.78554 524.74655
-## dark    10.34261 869.67806</code></pre>
+<pre><code>##             [,1]       [,2]
+## blue   310.26776  23.582447
+## light  717.81051   2.959867
+## medium 481.12000 456.844871
+## dark    37.89063 783.673294</code></pre>
 <pre class="r"><code>h</code></pre>
-<pre><code>##            fair        red    medium      dark       black
-## [1,] 1.18865069 0.19006456 1.1997082 0.2997579 0.001188372
-## [2,] 0.08476245 0.05000174 0.5422719 0.7210620 0.079713009</code></pre>
+<pre><code>##           fair        red    medium      dark       black
+## [1,] 0.8856602 0.14302714 0.9115746 0.2504273 0.003967138
+## [2,] 0.0669304 0.05108225 0.5735425 0.7920433 0.088285040</code></pre>
 <p>Reconstruimos a</p>
 <pre class="r"><code>w %*% h</code></pre>
 <pre><code>##             fair       red   medium      dark     black
@@ -65,20 +65,20 @@ h &lt;-  res@fit@H</code></pre>
 <p>Normalicemos</p>
 <pre class="r"><code>w_hat &lt;- w / rowSums(w)
 w_hat</code></pre>
-<pre><code>##              [,1]       [,2]
-## blue   0.85766752 0.14233248
-## light  0.94491603 0.05508397
-## medium 0.39790335 0.60209665
-## dark   0.01175269 0.98824731</code></pre>
+<pre><code>##              [,1]        [,2]
+## blue   0.92936219 0.070637808
+## light  0.99589347 0.004106532
+## medium 0.51294032 0.487059679
+## dark   0.04612013 0.953879875</code></pre>
 <pre class="r"><code>h_hat &lt;-  h / rowSums(h)
 h_hat</code></pre>
-<pre><code>##            fair        red    medium      dark        black
-## [1,] 0.41281628 0.06600908 0.4166565 0.1041054 0.0004127195
-## [2,] 0.05735676 0.03383500 0.3669426 0.4879257 0.0539399210</code></pre>
+<pre><code>##            fair        red    medium      dark       black
+## [1,] 0.40355303 0.06517063 0.4153610 0.1141077 0.001807635
+## [2,] 0.04257975 0.03249748 0.3648759 0.5038817 0.056165131</code></pre>
 <p>Así, el primer “menú” está compuesto por los “productos” fair, red, etc, en proporción a como indica la primera fila de h_hat. Y el individuo “blue” prefiere el primer menú en casi un 0.9 de probabilidad vs un alrededor de 0.1 de preferencia del menú 2. En un PCA diríamos que esos son los “loadings”.</p>
 <p>Las filas de <em>W</em> a veces se asocian con arquetipos o individuos promedio. Los individuos “blue” tienen esos pesos los dos factores latentes.</p>
 <p>En este caso dónde tenemos color de ojos (fila) y color del pelo (columnas), vemos que en las dos distribuciones multinomiales que hay en sendas filas de <code>h_hat</code> (si, eso es lo que son, dos distribuciones multinomiales), la probabilidad de tener el pelo negro es bastante pequeña (tiene que ver con la tabla de contingencia original, hay muy pocos con el pelo negro).
-Pero vemos que hay un arquetipo, (el de os ojos oscuros) para el cual el peso que da al menú de preferencias 1 (dónde la probabilidad de tener el pelo negro es mayor). Es decir, al final es una mixtura de distribuciones multinomiales.</p>
+Pero vemos que hay un arquetipo, (el de os ojos oscuros) para el cual el peso que da al menú de preferencias dónde la probabilidad de tener el pelo negro sea mayor. Es decir, al final es una mixtura de distribuciones multinomiales.</p>
 <p>En realidad lo que hace NMF es descubrir la estructura subyacente de los datos en un espacio de menor dimensión que el original. Bueno, pues con <em>W</em> y <em>H</em> normalizadas podemos construir una matriz diagonal <em>D</em> que simplemente nos genere muestras de individuos y en qué columnas caen.</p>
 <p>Podemos utilizar como matriz diagonal la suma de las filas de a, y así obtener</p>
 <pre class="r"><code>(d &lt;- diag(rowSums(a)))</code></pre>
@@ -87,21 +87,21 @@ Pero vemos que hay un arquetipo, (el de os ojos oscuros) para el cual el peso qu
 ## [2,]    0 1580    0    0
 ## [3,]    0    0 1774    0
 ## [4,]    0    0    0 1315</code></pre>
-<p>Y podemos hacer $A D W H $</p>
+<p>Y podemos hacer <span class="math inline">\(A \approx D \cdot W \cdot H\)</span></p>
 <pre class="r"><code>d %*% w_hat %*% h_hat</code></pre>
 <pre><code>##           fair       red   medium     dark     black
-## [1,] 260.07600  44.10650 294.0789 113.9721  5.766530
-## [2,] 621.31313 101.49416 653.9906 197.8914  5.310712
-## [3,] 352.66285  82.73435 686.0483 594.6489 57.905610
-## [4,]  80.91769  44.99027 483.2979 635.6904 70.103745</code></pre>
+## [1,] 271.44325  45.13540 295.6687 101.6979  4.054783
+## [2,] 635.27167 102.75760 655.9428 182.8192  3.208752
+## [3,] 404.00632  87.38166 693.2291 539.2089 50.174006
+## [4,]  77.88466  44.71574 482.8737 638.9654 70.560476</code></pre>
 <p>Que se parece bastante a <code>w %*% h</code> , o podríamos usar otra <em>D</em>, en este caso para obtener qué matriz se obtendría para 10 casos de cada fila.</p>
 <pre class="r"><code>d &lt;-  diag(c(10,10, 10, 10))
 d %*% w_hat %*% h_hat</code></pre>
 <pre><code>##           fair       red   medium     dark      black
-## [1,] 3.6222285 0.6142967 4.095806 1.587355 0.08031379
-## [2,] 3.9323616 0.6423681 4.139181 1.252477 0.03361210
-## [3,] 1.9879529 0.4663718 3.867240 3.352023 0.32641268
-## [4,] 0.6153436 0.3421314 3.675269 4.834148 0.53310832</code></pre>
+## [1,] 3.7805467 0.6286267 4.117948 1.416405 0.05647329
+## [2,] 4.0207068 0.6503646 4.151537 1.157083 0.02030856
+## [3,] 2.2773750 0.4925685 3.907718 3.039509 0.28282980
+## [4,] 0.5922788 0.3400437 3.672043 4.859053 0.53658157</code></pre>
 <p>y bueno, la verdad es que me pregunto si esto se parece o no a un análisis de correspondencias. Veamos</p>
 <pre class="r"><code>library(FactoMineR)
 res_ca &lt;-  CA (a, ncp = 2)</code></pre>
@@ -118,18 +118,18 @@ Lo primero que hay que darse cuenta es que ambas técnicas no son del todo compa
 <pre class="r"><code>coordenadas_filas &lt;-  cbind(res_ca$row$coord, w_hat)
 colnames(coordenadas_filas)[3:4] &lt;-  paste0(&quot;nmf_&quot;, 1:2)
 coordenadas_filas</code></pre>
-<pre><code>##              Dim 1       Dim 2      nmf_1      nmf_2
-## blue   -0.40029985  0.16541100 0.85766752 0.14233248
-## light  -0.44070764  0.08846303 0.94491603 0.05508397
-## medium  0.03361434 -0.24500190 0.39790335 0.60209665
-## dark    0.70273880  0.13391383 0.01175269 0.98824731</code></pre>
+<pre><code>##              Dim 1       Dim 2      nmf_1       nmf_2
+## blue   -0.40029985  0.16541100 0.92936219 0.070637808
+## light  -0.44070764  0.08846303 0.99589347 0.004106532
+## medium  0.03361434 -0.24500190 0.51294032 0.487059679
+## dark    0.70273880  0.13391383 0.04612013 0.953879875</code></pre>
 <p>y</p>
 <pre class="r"><code>cor(coordenadas_filas)</code></pre>
 <pre><code>##             Dim 1       Dim 2      nmf_1      nmf_2
-## Dim 1  1.00000000 -0.05155554 -0.9848757  0.9848757
-## Dim 2 -0.05155554  1.00000000  0.2049803 -0.2049803
-## nmf_1 -0.98487570  0.20498031  1.0000000 -1.0000000
-## nmf_2  0.98487570 -0.20498031 -1.0000000  1.0000000</code></pre>
+## Dim 1  1.00000000 -0.05155554 -0.9954663  0.9954663
+## Dim 2 -0.05155554  1.00000000  0.1346751 -0.1346751
+## nmf_1 -0.99546631  0.13467507  1.0000000 -1.0000000
+## nmf_2  0.99546631 -0.13467507 -1.0000000  1.0000000</code></pre>
 <p>Resultado coherente, ¿no? . En este ejemplo de juguete una única dimensión del correspondencias explica el 86,5% de la inercia.</p>
 <p>Cosas buenas del nmf.</p>
 <ul>
@@ -142,15 +142,15 @@ coordenadas_filas</code></pre>
 
 res_nmf2 &lt;-  nnmf(a, k = 2, loss = &quot;mkl&quot;)</code></pre>
 <pre class="r"><code>res_nmf2$W</code></pre>
-<pre><code>##             [,1]        [,2]
-## blue    1.766710 13.89218380
-## light   1.657979 32.24811241
-## medium 22.526813 20.66014922
-## dark   36.976673  0.05812027</code></pre>
+<pre><code>##             [,1]      [,2]
+## blue   14.386372  1.462810
+## light  33.253858  1.372782
+## medium 22.546984 18.651868
+## dark    2.200178 30.616138</code></pre>
 <pre class="r"><code>res_nmf2$H</code></pre>
-<pre><code>##           fair      red   medium      dark        black
-## [1,]  2.295245 1.224273 13.05868 17.035463 1.875154e+00
-## [2,] 19.602042 3.125385 19.67199  4.771108 3.484910e-16</code></pre>
+<pre><code>##           fair      red   medium    dark        black
+## [1,] 19.064210 3.039632 19.13224  4.6402 1.498187e-15
+## [2,]  1.439278 1.266112 14.43408 20.2502 2.264719e+00</code></pre>
 <p>Nuevas filas</p>
 <pre class="r"><code>b &lt;- matrix( data = c(20, 30, 40, 0,20, 10, 10, 30,10, 90), nrow=2, byrow = TRUE)
 colnames(b) &lt;-  colnames(a)
@@ -162,16 +162,16 @@ b</code></pre>
 <p>Y tiene un método predict</p>
 <pre class="r"><code>predict(res_nmf2, newdata = b, which = &quot;W&quot;)</code></pre>
 <pre><code>## $coefficients
-##             [,1]     [,2]
-## tipo_n1 1.272877 1.374314
-## tipo_n2 4.226683 0.000000
+##               [,1]     [,2]
+## tipo_n1 1.48676649 1.053924
+## tipo_n2 0.07050392 3.701118
 ## 
 ## $n.iteration
-## [1] 30
+## [1] 37
 ## 
 ## $error
 ##          MSE          MKL target.error 
-##   1304.02310     26.75563     26.75563 
+##   1337.45331     26.65946     26.65946 
 ## 
 ## $options
 ## $options$method
