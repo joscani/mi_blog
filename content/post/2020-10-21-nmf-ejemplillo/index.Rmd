@@ -110,7 +110,8 @@ y bueno, la verdad es que me pregunto si esto se parece o no a un análisis de c
 
 ```{r}
 library(FactoMineR)
-res_ca <-  CA (a, ncp = 2)
+res_ca <-  CA (a, ncp = 2, graph = FALSE)
+factoextra::fviz_ca(res_ca)
 ```
 Lo primero que hay que darse cuenta es que ambas técnicas no son del todo comparables, el correspondencias busca encontrar dimensiones que expliquen la mayor cantidad de inercia (distancia Chi-cuadrado) y es parecido al PCA en el sentido de que la primera dimensión es la que más explica, etc.. De hecho el CA, diagonaliza 2 matrices derivadas de la tabla de contingencia, una la de los perfiles filas y otra la de los perfiles columna. Y las pinta junta de acuerdo a algún teorema baricéntrico que tuve que demostrar en algún examen allá por los lejanos 90's. 
 

@@ -37,27 +37,27 @@ a</code></pre>
 <pre class="r"><code>w &lt;-  res@fit@W
 h &lt;-  res@fit@H</code></pre>
 <pre class="r"><code>w </code></pre>
-<pre><code>##             [,1]       [,2]
-## blue   310.26776  23.582447
-## light  717.81051   2.959867
-## medium 481.12000 456.844871
-## dark    37.89063 783.673294</code></pre>
+<pre><code>##              [,1]        [,2]
+## blue     50.72778 301.8719197
+## light    47.60578 700.7685444
+## medium  646.81555 448.6993202
+## dark   1061.71640   0.8208889</code></pre>
 <pre class="r"><code>h</code></pre>
-<pre><code>##           fair        red    medium      dark       black
-## [1,] 0.8856602 0.14302714 0.9115746 0.2504273 0.003967138
-## [2,] 0.0669304 0.05108225 0.5735425 0.7920433 0.088285040</code></pre>
+<pre><code>##            fair        red    medium      dark        black
+## [1,] 0.08031272 0.04269796 0.4551752 0.5933899 6.530647e-02
+## [2,] 0.90202534 0.14382054 0.9052440 0.2195516 2.220446e-16</code></pre>
 <p>Reconstruimos a</p>
 <pre class="r"><code>w %*% h</code></pre>
 <pre><code>##             fair       red   medium      dark     black
 ## blue   276.37021  45.58136 296.3578  96.37782  3.312852
 ## light  635.93433 102.81758 656.0355 182.10365  3.108965
 ## medium 456.68567  92.14988 700.5967 482.32648 42.241237
-## dark    86.00979  45.45118 484.0100 630.19204 69.336946</code></pre>
+## dark    86.00979  45.45118 484.0100 630.19204 69.336945</code></pre>
 <p>Y si comparamos con a</p>
 <pre class="r"><code>a - (w %*% h)</code></pre>
 <pre><code>##              fair       red    medium       dark       black
 ## blue     49.62979 -7.581356 -55.35776  13.622177  -0.3128523
-## light    52.06567 13.182418 -72.03547   5.896346   0.8910349
+## light    52.06567 13.182418 -72.03547   5.896346   0.8910348
 ## medium -113.68567 -8.149881 208.40327 -70.326485 -16.2412371
 ## dark     11.99021  2.548819 -81.01004  50.807961  15.6630545</code></pre>
 <p>Bueno, la reconstrucción no es perfecta, pero bueno, no está tan mal.</p>
@@ -65,16 +65,16 @@ h &lt;-  res@fit@H</code></pre>
 <p>Normalicemos</p>
 <pre class="r"><code>w_hat &lt;- w / rowSums(w)
 w_hat</code></pre>
-<pre><code>##              [,1]        [,2]
-## blue   0.92936219 0.070637808
-## light  0.99589347 0.004106532
-## medium 0.51294032 0.487059679
-## dark   0.04612013 0.953879875</code></pre>
+<pre><code>##              [,1]         [,2]
+## blue   0.14386792 0.8561320849
+## light  0.06361226 0.9363877442
+## medium 0.59042151 0.4095784859
+## dark   0.99922743 0.0007725742</code></pre>
 <pre class="r"><code>h_hat &lt;-  h / rowSums(h)
 h_hat</code></pre>
-<pre><code>##            fair        red    medium      dark       black
-## [1,] 0.40355303 0.06517063 0.4153610 0.1141077 0.001807635
-## [2,] 0.04257975 0.03249748 0.3648759 0.5038817 0.056165131</code></pre>
+<pre><code>##            fair        red    medium      dark        black
+## [1,] 0.06493158 0.03452063 0.3680020 0.4797465 5.279926e-02
+## [2,] 0.41555704 0.06625716 0.4170398 0.1011460 1.022945e-16</code></pre>
 <p>Así, el primer “menú” está compuesto por los “productos” fair, red, etc, en proporción a como indica la primera fila de h_hat. Y el individuo “blue” prefiere el primer menú en casi un 0.9 de probabilidad vs un alrededor de 0.1 de preferencia del menú 2. En un PCA diríamos que esos son los “loadings”.</p>
 <p>Las filas de <em>W</em> a veces se asocian con arquetipos o individuos promedio. Los individuos “blue” tienen esos pesos los dos factores latentes.</p>
 <p>En este caso dónde tenemos color de ojos (fila) y color del pelo (columnas), vemos que en las dos distribuciones multinomiales que hay en sendas filas de <code>h_hat</code> (si, eso es lo que son, dos distribuciones multinomiales), la probabilidad de tener el pelo negro es bastante pequeña (tiene que ver con la tabla de contingencia original, hay muy pocos con el pelo negro).
@@ -90,21 +90,22 @@ Pero vemos que hay un arquetipo, (el de os ojos oscuros) para el cual el peso qu
 <p>Y podemos hacer <span class="math inline">\(A \approx D \cdot W \cdot H\)</span></p>
 <pre class="r"><code>d %*% w_hat %*% h_hat</code></pre>
 <pre><code>##           fair       red   medium     dark     black
-## [1,] 271.44325  45.13540 295.6687 101.6979  4.054783
-## [2,] 635.27167 102.75760 655.9428 182.8192  3.208752
-## [3,] 404.00632  87.38166 693.2291 539.2089 50.174006
-## [4,]  77.88466  44.71574 482.8737 638.9654 70.560476</code></pre>
+## [1,] 262.15134  44.29435 294.3691 111.7312  5.454014
+## [2,] 621.33968 101.49656 653.9943 197.8628  5.306714
+## [3,] 369.95036  84.29912 688.4661 575.9821 55.302354
+## [4,]  85.74124  45.42687 483.9725 630.4820 69.377386</code></pre>
 <p>Que se parece bastante a <code>w %*% h</code> , o podríamos usar otra <em>D</em>, en este caso para obtener qué matriz se obtendría para 10 casos de cada fila.</p>
 <pre class="r"><code>d &lt;-  diag(c(10,10, 10, 10))
 d %*% w_hat %*% h_hat</code></pre>
 <pre><code>##           fair       red   medium     dark      black
-## [1,] 3.7805467 0.6286267 4.117948 1.416405 0.05647329
-## [2,] 4.0207068 0.6503646 4.151537 1.157083 0.02030856
-## [3,] 2.2773750 0.4925685 3.907718 3.039509 0.28282980
-## [4,] 0.5922788 0.3400437 3.672043 4.859053 0.53658157</code></pre>
+## [1,] 3.6511328 0.6169129 4.099849 1.556144 0.07596119
+## [2,] 3.9325296 0.6423833 4.139204 1.252296 0.03358680
+## [3,] 2.0854022 0.4751923 3.880869 3.246799 0.31173819
+## [4,] 0.6520246 0.3454515 3.680399 4.794540 0.52758468</code></pre>
 <p>y bueno, la verdad es que me pregunto si esto se parece o no a un análisis de correspondencias. Veamos</p>
 <pre class="r"><code>library(FactoMineR)
-res_ca &lt;-  CA (a, ncp = 2)</code></pre>
+res_ca &lt;-  CA (a, ncp = 2, graph = FALSE)
+factoextra::fviz_ca(res_ca)</code></pre>
 <p><img src="index_files/figure-html/unnamed-chunk-12-1.png" width="672" />
 Lo primero que hay que darse cuenta es que ambas técnicas no son del todo comparables, el correspondencias busca encontrar dimensiones que expliquen la mayor cantidad de inercia (distancia Chi-cuadrado) y es parecido al PCA en el sentido de que la primera dimensión es la que más explica, etc.. De hecho el CA, diagonaliza 2 matrices derivadas de la tabla de contingencia, una la de los perfiles filas y otra la de los perfiles columna. Y las pinta junta de acuerdo a algún teorema baricéntrico que tuve que demostrar en algún examen allá por los lejanos 90’s.</p>
 <p>Pero en realidad si nos fijamos en las coordenadas de las filas en el CA</p>
@@ -118,18 +119,18 @@ Lo primero que hay que darse cuenta es que ambas técnicas no son del todo compa
 <pre class="r"><code>coordenadas_filas &lt;-  cbind(res_ca$row$coord, w_hat)
 colnames(coordenadas_filas)[3:4] &lt;-  paste0(&quot;nmf_&quot;, 1:2)
 coordenadas_filas</code></pre>
-<pre><code>##              Dim 1       Dim 2      nmf_1       nmf_2
-## blue   -0.40029985  0.16541100 0.92936219 0.070637808
-## light  -0.44070764  0.08846303 0.99589347 0.004106532
-## medium  0.03361434 -0.24500190 0.51294032 0.487059679
-## dark    0.70273880  0.13391383 0.04612013 0.953879875</code></pre>
+<pre><code>##              Dim 1       Dim 2      nmf_1        nmf_2
+## blue   -0.40029985  0.16541100 0.14386792 0.8561320849
+## light  -0.44070764  0.08846303 0.06361226 0.9363877442
+## medium  0.03361434 -0.24500190 0.59042151 0.4095784859
+## dark    0.70273880  0.13391383 0.99922743 0.0007725742</code></pre>
 <p>y</p>
 <pre class="r"><code>cor(coordenadas_filas)</code></pre>
 <pre><code>##             Dim 1       Dim 2      nmf_1      nmf_2
-## Dim 1  1.00000000 -0.05155554 -0.9954663  0.9954663
-## Dim 2 -0.05155554  1.00000000  0.1346751 -0.1346751
-## nmf_1 -0.99546631  0.13467507  1.0000000 -1.0000000
-## nmf_2  0.99546631 -0.13467507 -1.0000000  1.0000000</code></pre>
+## Dim 1  1.00000000 -0.05155554  0.9886649 -0.9886649
+## Dim 2 -0.05155554  1.00000000 -0.1845396  0.1845396
+## nmf_1  0.98866486 -0.18453964  1.0000000 -1.0000000
+## nmf_2 -0.98866486  0.18453964 -1.0000000  1.0000000</code></pre>
 <p>Resultado coherente, ¿no? . En este ejemplo de juguete una única dimensión del correspondencias explica el 86,5% de la inercia.</p>
 <p>Cosas buenas del nmf.</p>
 <ul>
@@ -143,14 +144,14 @@ coordenadas_filas</code></pre>
 res_nmf2 &lt;-  nnmf(a, k = 2, loss = &quot;mkl&quot;)</code></pre>
 <pre class="r"><code>res_nmf2$W</code></pre>
 <pre><code>##             [,1]      [,2]
-## blue   14.386372  1.462810
-## light  33.253858  1.372782
-## medium 22.546984 18.651868
-## dark    2.200178 30.616138</code></pre>
+## blue   15.595043  1.541350
+## light  36.167872  1.446489
+## medium 23.462304 19.653319
+## dark    0.566294 32.259972</code></pre>
 <pre class="r"><code>res_nmf2$H</code></pre>
-<pre><code>##           fair      red   medium    dark        black
-## [1,] 19.064210 3.039632 19.13224  4.6402 1.498187e-15
-## [2,]  1.439278 1.266112 14.43408 20.2502 2.264719e+00</code></pre>
+<pre><code>##           fair      red   medium      dark        black
+## [1,] 17.488501 2.788398 17.55090  4.256675 1.315282e-15
+## [2,]  2.359151 1.359956 14.69533 19.460076 2.149318e+00</code></pre>
 <p>Nuevas filas</p>
 <pre class="r"><code>b &lt;- matrix( data = c(20, 30, 40, 0,20, 10, 10, 30,10, 90), nrow=2, byrow = TRUE)
 colnames(b) &lt;-  colnames(a)
@@ -162,16 +163,16 @@ b</code></pre>
 <p>Y tiene un método predict</p>
 <pre class="r"><code>predict(res_nmf2, newdata = b, which = &quot;W&quot;)</code></pre>
 <pre><code>## $coefficients
-##               [,1]     [,2]
-## tipo_n1 1.48676649 1.053924
-## tipo_n2 0.07050392 3.701118
+##             [,1]     [,2]
+## tipo_n1 1.557655 1.110511
+## tipo_n2 0.000000 3.747767
 ## 
 ## $n.iteration
-## [1] 37
+## [1] 33
 ## 
 ## $error
 ##          MSE          MKL target.error 
-##   1337.45331     26.65946     26.65946 
+##   1313.09418     26.71148     26.71148 
 ## 
 ## $options
 ## $options$method
