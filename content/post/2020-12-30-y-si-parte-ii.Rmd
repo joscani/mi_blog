@@ -97,7 +97,7 @@ y por
 $$\hat{\mu}_{1} = M_{2}(Y^1 \sim X^1)$$
 
 
-* Ahora usamos esos modelos de la siguiente forma, para las observaciones que tengan W=1 utilizamos el modelo  $\hat{\mu}_{1}$,  y para las observaciones con W=0 usamos  el modelo que se ha estimado usando la otra parte de los datos  $\hat{\mu}_{0}$. 
+* Ahora usamos esos modelos de la siguiente forma, para las observaciones que tengan W=0 utilizamos el modelo  $\hat{\mu}_{1}$,  y para las observaciones con W=1 usamos  el modelo que se ha estimado usando la otra parte de los datos  $\hat{\mu}_{0}$. 
 
 * Calculamos para cada observación con W=0 la diferencia entre lo observado y lo estimado por el modelo $\hat{\mu}_{1}$ y lo mismo para las observaciones con W=1. Así tenemos.
 

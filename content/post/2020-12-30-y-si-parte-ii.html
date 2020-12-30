@@ -194,7 +194,7 @@ predict(mod_arbol, df_w1) - predict(mod_arbol, df_w0)</code></pre>
 y por
 <span class="math display">\[\hat{\mu}_{1} = M_{2}(Y^1 \sim X^1)\]</span></p>
 <ul>
-<li><p>Ahora usamos esos modelos de la siguiente forma, para las observaciones que tengan W=1 utilizamos el modelo <span class="math inline">\(\hat{\mu}_{1}\)</span>, y para las observaciones con W=0 usamos el modelo que se ha estimado usando la otra parte de los datos <span class="math inline">\(\hat{\mu}_{0}\)</span>.</p></li>
+<li><p>Ahora usamos esos modelos de la siguiente forma, para las observaciones que tengan W=0 utilizamos el modelo <span class="math inline">\(\hat{\mu}_{1}\)</span>, y para las observaciones con W=1 usamos el modelo que se ha estimado usando la otra parte de los datos <span class="math inline">\(\hat{\mu}_{0}\)</span>.</p></li>
 <li><p>Calculamos para cada observación con W=0 la diferencia entre lo observado y lo estimado por el modelo <span class="math inline">\(\hat{\mu}_{1}\)</span> y lo mismo para las observaciones con W=1. Así tenemos.</p></li>
 </ul>
 <p><span class="math display">\[D_{i}^{0} = \hat{\mu}_{1}(X_{i}^{0})- Y_{i}^{0} \]</span>
