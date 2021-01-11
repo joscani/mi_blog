@@ -8,10 +8,13 @@ categories:
   - polémica
 tags:
   - linux
+  - ocr
+  - análisis
+  
 slug: cachitos-primera-parte
 ---
 
-En las ya pasadas navidades se generó algo de polémica con el especial de cachitos nochevieja. Qué si los rótulos se metían mucho con la oposición, el rey y ciudadanos y muy poco con el gobierno. Así que me entró la curiosidad y pensé, ¿por qué no analizar los rótulos del cachitos nochevieja de 2020 y de paso el de 2019? Pues me pusé manos a la obra. 
+En las ya pasadas navidades se generó algo de polémica con el especial de cachitos nochevieja. Qué si los rótulos se metían mucho con la oposición, el rey y ciudadanos y muy poco con el gobierno. Así que me entró la curiosidad y pensé, ¿por qué no analizar los rótulos del cachitos nochevieja de 2020 y de paso del 2019? Pues me pusé manos a la obra. 
 Lo primero de todo, dar las gracias a [Raúl Vaquerizo](https://analisisydecision.es/) y a [Carlos Gil Bellosta](https://www.datanalytics.com/) por darme consejos y pasarme el enlace al blog de [Waldo Jaquith](https://waldo.jaquith.org/blog/2011/02/ocr-video/) en el que se basa esta primera entrada. 
 
 Esta primera parte va a consistir en varios pasos
@@ -47,7 +50,8 @@ Vamos a utilizar `mplayer` para extraer 1/200 fotogramas a formato jpg.
 mplayer -vf framestep=200 -framedrop -nosound 2020_cachitos.mp4 -speed 100 -vo jpeg:outdir=2020_jpg 
 ```
 
-Y después de un rato (tengo que probar si hacerlo con ffmpeg es más rápido), tenemos unos 1300 jpg. Pongo un ejemplo.  
+Y después de un rato (tengo que probar si hacerlo con ffmpeg es más rápido), tenemos unos 1300 jpg. Hemos resumido 3 horas de video en 1300 imágenes. 
+Pongo un ejemplo.  
 
 ![imagen](/post/2021-01-11-cachitos-primera-parte_files/00000186_original_size)
 
@@ -74,12 +78,13 @@ Para extraer sólo el rótulo hay que utilizar la herramienta `crop` también de
 En este caso decimso que nos cree ficheros tif que tengan el mismo nombr que el original y le añada el sufijo .subtitulo.tif. Por ejemplo tendremos ficheros con este patrón `00000186.jpg.subtitulo.tif` 
 
 ```bash
+# en paralelo de nuevo
 find . -name '*.jpg' |  parallel -j 6 convert {} -crop 460x50+90+295 +repage -compress none -depth 8 {}.subtitulo.tif
 ```
 
 ![](/post/2021-01-11-cachitos-primera-parte_files/00000186.jpg.subtitulo.png)
 
-Para que el ocr funcione mejor podemos negativizar la imagen
+Para que el ocr funcione mejor podemos "negativizar" la imagen
 
 ```bash
 find . -name '*.tif' |  parallel -j 6 convert {} -negate -fx '.8*r+.8*g+0*b' -compress none -depth 8 {}
@@ -110,6 +115,9 @@ en el mismo inglés que hablaba Emilio Botín
 ```
 
 Pues al menos en este caso funciona bastante bien. En las siguientes entradas comentaremos brevemente como podríamos analizar los subtítulos. 
+
+Con estos pasos hemos conseguido extraer el texto de los subtítulos de unas 3 horas de vídeo, evidentemente si los subtítulos estuvieran en una pista srt dentro del mp4 no habría necesario todo esto. Este tipo de análisis hecho enteramente en bash es fácilmente escalable y se puede utilizar por ejemplo para identificar matrículas o similar. 
+
 
 Os dejo también un script `extract_subtitles.sh` que le pasas como argumento el año , 2020 o 2019 y te baja el video, te extrae los fotogramas, hace el ocr y te deja los ficheros de texto en un directorio. 
 
