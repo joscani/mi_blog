@@ -73,9 +73,9 @@ Al extraer uno de cada 200 frames, muchas veces extraemos fotogramas sin rótulo
 ![](/post/2021-01-11-cachitos-primera-parte_files/00000187.jpg)
 
 
-Para extraer sólo el rótulo hay que utilizar la herramienta `crop` también de `imagemagick` dónde le decimos la resolución de la imagen resultante y la coordenada x e y de la imagen de 642x480 original dónde empieza el corte. 
+Para extraer sólo el rótulo hay que utilizar la herramienta `crop` también de `imagemagick` dónde le decimos la resolución de la imagen resultante y la coordenada x e y de la imagen de 642x480 original dónde empieza el corte.  Aquí tuve que hacer bastantes pruebas hasta identificar la posición de los subtítulos, dado que el cuadro dónde aparecen es de tamaño variable. 
 
-En este caso decimso que nos cree ficheros tif que tengan el mismo nombr que el original y le añada el sufijo .subtitulo.tif. Por ejemplo tendremos ficheros con este patrón `00000186.jpg.subtitulo.tif` 
+En este caso decimos que nos cree ficheros tif que tengan el mismo nombr que el original y le añada el sufijo .subtitulo.tif. Por ejemplo tendremos ficheros con este patrón `00000186.jpg.subtitulo.tif` 
 
 ```bash
 # en paralelo de nuevo
@@ -84,7 +84,8 @@ find . -name '*.jpg' |  parallel -j 6 convert {} -crop 460x50+90+295 +repage -co
 
 ![](/post/2021-01-11-cachitos-primera-parte_files/00000186.jpg.subtitulo.png)
 
-Para que el ocr funcione mejor podemos "negativizar" la imagen
+Cómo me comentaba ayer alguien por twitter, tesseract es un poco "tiquismiquis", así que para facilitarle el trabajo "negativizamos" las imágenes.
+
 
 ```bash
 find . -name '*.tif' |  parallel -j 6 convert {} -negate -fx '.8*r+.8*g+0*b' -compress none -depth 8 {}
@@ -116,7 +117,7 @@ en el mismo inglés que hablaba Emilio Botín
 
 Pues al menos en este caso funciona bastante bien. En las siguientes entradas comentaremos brevemente como podríamos analizar los subtítulos. 
 
-Con estos pasos hemos conseguido extraer el texto de los subtítulos de unas 3 horas de vídeo, evidentemente si los subtítulos estuvieran en una pista srt dentro del mp4 no habría necesario todo esto. Este tipo de análisis hecho enteramente en bash es fácilmente escalable y se puede utilizar por ejemplo para identificar matrículas o similar. 
+Con estos pasos hemos conseguido extraer el texto de los subtítulos de unas 3 horas de vídeo, evidentemente si los subtítulos estuvieran en una pista srt dentro del mp4 no habría sido necesario todo esto. Este tipo de análisis hecho enteramente en bash es fácilmente escalable y se puede utilizar por ejemplo para identificar matrículas o similar. 
 
 
 Os dejo también un script `extract_subtitles.sh` que le pasas como argumento el año , 2020 o 2019 y te baja el video, te extrae los fotogramas, hace el ocr y te deja los ficheros de texto en un directorio. 
