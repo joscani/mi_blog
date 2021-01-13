@@ -161,6 +161,12 @@ subtitulos %&gt;%
 ##  9           10     4
 ## 10           11     5
 ## # … with 117 more rows</code></pre>
+<pre class="r"><code>subtitulos %&gt;% 
+    group_by(n_caracteres) %&gt;% 
+    count() %&gt;% 
+  ggplot(aes(x = n_caracteres, y = n)) +
+  geom_col()</code></pre>
+<p><img src="/post/2021-01-13-cachitos-segunda-parte_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
 <p>Y vemos que hay muchos subtitulos con pocos caracteres. Si vemos por ejemplo los que tienen 8 caracteres</p>
 <pre class="r"><code>subtitulos %&gt;% 
     filter(n_caracteres ==8) %&gt;% 

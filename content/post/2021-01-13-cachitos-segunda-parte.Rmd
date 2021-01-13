@@ -137,6 +137,12 @@ subtitulos <- subtitulos %>%
 subtitulos %>% 
     group_by(n_caracteres) %>% 
     count()
+
+subtitulos %>% 
+    group_by(n_caracteres) %>% 
+    count() %>% 
+  ggplot(aes(x = n_caracteres, y = n)) +
+  geom_col()
 ```
 
 Y vemos que hay muchos subtitulos con pocos caracteres. Si vemos por ejemplo los que tienen 8 caracteres
