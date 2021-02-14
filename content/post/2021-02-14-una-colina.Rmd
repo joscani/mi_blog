@@ -49,7 +49,7 @@ testRun <- function(x) {
 ```
 
 
-## No maltretemos al modelo base
+## No maltratemos al modelo base
 
 El segundo gran error tiene que ver con una trampa que le hacemos al modelo base. Para el modelo base la única info que usamos para modelar la variable de usuarios de bici que cruzan el puente de Manhattan es el día de la semana. En cambio para el MCA y para el embedding usamos la relación que hay entre los usuarios que pasan por el puente de Brooklyn y el día de la semana.  
 Para ser justos, debería haber utilizado la relación de los usuarios con el puente de Manhattan o bien haber añadido la variable de los usuarios del puente de Brooklyn al modelo base. 
