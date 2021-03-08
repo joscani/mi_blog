@@ -1,0 +1,80 @@
+---
+title: AUC = Wilcoxon , de nuevo
+author: jlcr
+date: '2021-03-08'
+slug: auc-wilcoxon-de-nuevo
+categories:
+  - estadística
+tags:
+  - estadística
+description: ''
+topics: []
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<p>Anda la gente que si viendo a ver cómo calcular el AUC (roc), que si cómo se hace en spark o que si hay que tener en cuenta muchos puntos de corte y ver las tablas de clasificación asociadas. Eso está bien para contarlo, pero no para calcularlo.</p>
+<p>El AUC se puede considerar como la probabilidad de que el score de un “sí” elegido al azar es mayor que el score de un “no” elegido al azar. No lo digo yo, lo cuenta mucho mejor que yo , Carlos en su entrada <a href="https://www.datanalytics.com/2019/02/11/auc-wilcoxon/">AUC = WILCOXON</a>.
+De hecho, voy a coger sus mismos datos, salvo por la semilla, que no la indica.</p>
+<pre class="r"><code>set.seed(45)
+n &lt;- 30
+
+si &lt;- data.frame(res = &quot;si&quot;, score = rnorm(n, 1, 1))
+no &lt;- data.frame(res = &quot;no&quot;, score = rnorm(n, 0, 1))
+
+dat &lt;- rbind(si, no)</code></pre>
+<p>Y como bien comenta Carlos, tanto Wilcoxon como el cálculo usual del AUC dan esa probabilidad. Para esto da igual que los scores sean incluso negativo, se trata de algo que da un orden.</p>
+<pre class="r"><code>car::some(dat)</code></pre>
+<pre><code>##    res      score
+## 1   si  1.3407997
+## 2   si  0.2966597
+## 7   si  0.4986218
+## 9   si  2.8090374
+## 12  si  1.2159889
+## 34  no  0.2854323
+## 40  no  0.2459699
+## 48  no -0.3504094
+## 53  no  0.1114906
+## 60  no -0.8165108</code></pre>
+<p>Y copiando de su blog</p>
+<pre class="r"><code>test &lt;- wilcox.test(score ~ res, data = dat)$statistic
+# pongo el 1- pq salia menor que 0.5
+1- test / n^2</code></pre>
+<pre><code>##         W 
+## 0.7122222</code></pre>
+<pre class="r"><code>library(pROC)</code></pre>
+<pre><code>## Type &#39;citation(&quot;pROC&quot;)&#39; for a citation.</code></pre>
+<pre><code>## 
+## Attaching package: &#39;pROC&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     cov, smooth, var</code></pre>
+<pre class="r"><code>my_roc &lt;- roc(dat$res, dat$score)</code></pre>
+<pre><code>## Setting levels: control = no, case = si</code></pre>
+<pre><code>## Setting direction: controls &lt; cases</code></pre>
+<pre class="r"><code>auc(my_roc)</code></pre>
+<pre><code>## Area under the curve: 0.7122</code></pre>
+<p>Pero también podemos hacerlo muestreando.</p>
+<p>Nos creamos función</p>
+<pre class="r"><code>etiquetas &lt;- dat$res==&quot;si&quot;
+table(etiquetas)</code></pre>
+<pre><code>## etiquetas
+## FALSE  TRUE 
+##    30    30</code></pre>
+<p>Ahora muestreamos con reemplazamiento los scores correspondientes a etiqueta = TRUE, es decir a los sis</p>
+<pre class="r"><code>pos &lt;- sample(dat$score[etiquetas], size = 1e7, replace = TRUE)
+neg &lt;- sample(dat$score[!etiquetas], size = 1e7, replace = TRUE)</code></pre>
+<p>Y simplemente calculamos la probabilidad que buscamos haciendo la proporción de la veces qeu el score de un positivo gana al de un negativo.</p>
+<pre class="r"><code>mean(pos&gt;neg)</code></pre>
+<pre><code>## [1] 0.7122233</code></pre>
+<p>Y es una buena aproximación, creemos función y pongamos que en caso de empate de score, ni pa ti ni pa mi.</p>
+<pre class="r"><code>auc_probability &lt;- function(labels, scores, N=1e7){
+  pos &lt;- sample(scores[labels], N, replace=TRUE)
+  neg &lt;- sample(scores[!labels], N, replace=TRUE)
+  (sum(pos &gt; neg) + sum(pos == neg)/2) / N
+}</code></pre>
+<p>Pues ya tenemos una forma “sencilla” de calcular auc’s, que se puede usar por ejemplo en sql.</p>
+<pre class="r"><code>auc_probability(etiquetas, dat$score, N= 1e6)</code></pre>
+<pre><code>## [1] 0.712108</code></pre>
+<p>Salud y buena tarde</p>
