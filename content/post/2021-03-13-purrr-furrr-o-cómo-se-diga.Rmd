@@ -128,9 +128,11 @@ df2 <-  df %>%
     plots = map(data, plot_lifeexp),
     
     # uso de map2 para funcion con dos argumentos
-    predicciones = map2(modelo_x_continente, data,
+    predicciones = map2(modelo_x_continente,
+                        data,
                         function(modelo, datos)
-                          predict(modelo, newdata = datos))
+                          predict(modelo, newdata = datos)
+                        )
   )
 
 df2

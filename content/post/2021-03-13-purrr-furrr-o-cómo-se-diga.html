@@ -82,7 +82,7 @@ df_con_modelo</code></pre>
 ## 
 ## Coefficients:
 ## (Intercept)            x  
-##      0.9649       0.0295</code></pre>
+##     0.97521     -0.08025</code></pre>
 <pre class="r"><code># o equivalentemente
 df_con_modelo %&gt;% 
   pull(modelo) %&gt;% 
@@ -93,13 +93,13 @@ df_con_modelo %&gt;%
 ## 
 ## Coefficients:
 ## (Intercept)            x  
-##    0.995830    -0.001641</code></pre>
+##    1.000044     0.001346</code></pre>
 <pre class="r"><code>df_con_modelo$resumen_modelo[[2]]</code></pre>
 <pre><code>## # A tibble: 2 x 5
 ##   term        estimate std.error statistic   p.value
 ##   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
-## 1 (Intercept)   0.965     0.0295    32.7   5.70e-160
-## 2 x             0.0295    0.0302     0.976 3.29e-  1</code></pre>
+## 1 (Intercept)   0.975     0.0301     32.4  8.88e-158
+## 2 x            -0.0802    0.0303     -2.65 8.20e-  3</code></pre>
 <p>Hagamos un ejemplo más elaborado, usando datos de la librería <code>gapminder</code> más info en la ayuda de la misma</p>
 <pre class="r"><code>library(gapminder)
 
@@ -151,9 +151,11 @@ plot_lifeexp &lt;-  function(df){
     plots = map(data, plot_lifeexp),
     
     # uso de map2 para funcion con dos argumentos
-    predicciones = map2(modelo_x_continente, data,
+    predicciones = map2(modelo_x_continente,
+                        data,
                         function(modelo, datos)
-                          predict(modelo, newdata = datos))
+                          predict(modelo, newdata = datos)
+                        )
   )
 
 df2</code></pre>
