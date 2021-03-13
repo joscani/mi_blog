@@ -1,5 +1,5 @@
 ---
-title: Purrr, furrr o cómo se diga
+title: Purrr, furrr, maps y future_maps
 author: jlcr
 date: '2021-03-13'
 slug: purrr-furrr-o-cómo-se-diga
