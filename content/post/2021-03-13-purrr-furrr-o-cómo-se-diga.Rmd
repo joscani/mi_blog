@@ -94,7 +94,6 @@ Ahora el objetivo es hacer un modelo para cada continente un modelo que relacion
 Para eso nos creamos un par de funciones, que usaremos en el map. Una para hacer el modelo y otra un gráfico.
 
 ```{r}
-library(plotly)
 
 make_modelo_simple <-  function(df){
   
@@ -107,12 +106,12 @@ make_modelo_simple <-  function(df){
 }
 
 plot_lifeexp <-  function(df){
-  p <- df %>% 
+ df %>% 
     ggplot(aes(x= year, y=lifeExp, color = country, group= country)) + 
     geom_point() +
     geom_line() +
     labs(title = "LifeExp evolution")
-  ggplotly(p)
+
 }
 
 ```
