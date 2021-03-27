@@ -29,7 +29,7 @@ Aviso que mi conocimiento de estadística bayesiana es limitado y muy probableme
 
 En primer lugar los datos por municipios vienen [aqui](https://www.juntadeandalucia.es/institutodeestadisticaycartografia/salud/static/index.html5). Y bueno, estaría bien que estuvieran un poco mejor organizados, puesto que solo puedes bajarte los últimos datos actualizados, no hay serie histórica por municipio, o al menos yo no la he encontrado. 
 
-Después de bajarme el excel al final me quedo solo con los datos de los municipios del área sanitaria Granada Nordeste. [csv](https://github.com/joscani/mi_blog/blob/master/data/g_nordeste_20210326.csv)
+Después de bajarme el excel al final me quedo solo con los datos de los municipios del área sanitaria Granada Nordeste.
 
 ```{r}
 library(tidyverse)
