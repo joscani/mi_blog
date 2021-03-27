@@ -1,0 +1,150 @@
+---
+title: Estimación Bayesiana, estilo compadre
+author: jlcr
+date: '2021-03-27'
+slug: estimación-bayesiana-estilo-compadre
+categories:
+  - bayesian
+tags:
+  - estadística
+  - análisis bayesiano
+  - modelos mixtos
+description: ''
+topics: []
+---
+
+<script src="2021-03-27-estimación-bayesiana-estilo-compadre_files/header-attrs/header-attrs.js"></script>
+
+
+<p>El título de la entrada, sobre todo lo de la parte de “estilo compadre” viene de mis tiempos en consultoría, y tiene que ver con la necesidad de dar soluciones subóptimas a problemas acuciantes. Otra de mis frases, de la que puede que se acuerden Boris, Laura y Lourdes fue la de “si me das madera te hago un troncomóvil, no un ferrari”, lo cual es el equivalente a GIGO de toda la vida, pero a mi estilo.</p>
+<p>Vamos al lío, últimamente ando estudianddo estadística bayesiana con el excelente material que pone a disposición de todo el mundo, y gratis, Aki Vehtari en este sitio <a href="https://avehtari.github.io/BDA_course_Aalto/gsu2021.html">Curso BDA3</a>. Aki Vehtari es uno de los autores junto con Gelman y otros del libro Bayesian Data Analysis.</p>
+<p>En la página 48 y siguientes tienen un ejemplo de como realizar inferencia bayesiana para el ratio muertes por cáncer usando un modelo básico Poisson-Gamma. Pero lo interesante es que comentan como construir una priori a partir de los datos, y que la forma en que lo hacen en este ejemplo puede considerarse una aproximación a como se construye en los modelos jerárquicos.</p>
+<p>Total, que dado que en mi pueblo han aumentado, por desgracia, los casos y nos han confinado perimetralmente, voy a hacer el ejercicio de utilizar los datos del área sanitaria granada nordeste y adaptar el ejemplo.</p>
+<p>Aviso que mi conocimiento de estadística bayesiana es limitado y muy probablemente puede que haga algo mal. Estoy aprendiendo, jejej.</p>
+<div id="datos" class="section level2">
+<h2>Datos</h2>
+<p>En primer lugar los datos por municipios vienen <a href="https://www.juntadeandalucia.es/institutodeestadisticaycartografia/salud/static/index.html5">aqui</a>. Y bueno, estaría bien que estuvieran un poco mejor organizados, puesto que solo puedes bajarte los últimos datos actualizados, no hay serie histórica por municipio, o al menos yo no la he encontrado.</p>
+<p>Después de bajarme el excel al final me quedo solo con los datos de los municipios del área sanitaria Granada Nordeste.</p>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──</code></pre>
+<pre><code>## ✓ ggplot2 3.3.3     ✓ purrr   0.3.4
+## ✓ tibble  3.1.0     ✓ dplyr   1.0.5
+## ✓ tidyr   1.1.3     ✓ stringr 1.4.0
+## ✓ readr   1.4.0     ✓ forcats 0.5.1</code></pre>
+<pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>g_nordeste &lt;- read_csv(here::here(&quot;data/g_nordeste_20210326.csv&quot;))</code></pre>
+<pre><code>## 
+## ── Column specification ────────────────────────────────────────────────────────
+## cols(
+##   lugar_de_residencia = col_character(),
+##   poblacion_miles = col_double(),
+##   confirmados_pdia_14_dias = col_double()
+## )</code></pre>
+<pre class="r"><code>g_nordeste</code></pre>
+<pre><code>## # A tibble: 46 x 3
+##    lugar_de_residencia poblacion_miles confirmados_pdia_14_dias
+##    &lt;chr&gt;                         &lt;dbl&gt;                    &lt;dbl&gt;
+##  1 Alamedilla                    0.569                        0
+##  2 Albuñán                       0.409                        0
+##  3 Aldeire                       0.63                         0
+##  4 Alicún de Ortega              0.471                        0
+##  5 Alquife                       0.580                        0
+##  6 Baza                         20.4                         27
+##  7 Beas de Guadix                0.329                        0
+##  8 Benalúa                       3.31                        11
+##  9 Benamaurel                    2.26                         4
+## 10 Calahorra (La)                0.668                        0
+## # … with 36 more rows</code></pre>
+<p>Y podríamos contruir las tasas brutas por cada mil habitantes.</p>
+<pre class="r"><code>g_nordeste &lt;- g_nordeste %&gt;% 
+  mutate(tasa_bruta = confirmados_pdia_14_dias / poblacion_miles)
+
+g_nordeste %&gt;% 
+  arrange(-tasa_bruta)</code></pre>
+<pre><code>## # A tibble: 46 x 4
+##    lugar_de_residencia poblacion_miles confirmados_pdia_14_dias tasa_bruta
+##    &lt;chr&gt;                         &lt;dbl&gt;                    &lt;dbl&gt;      &lt;dbl&gt;
+##  1 Cogollos de Guadix            0.642                       17      26.5 
+##  2 Purullena                     2.31                        29      12.6 
+##  3 Cortes de Baza                1.84                        22      11.9 
+##  4 Peza (La)                     1.17                         8       6.86
+##  5 Dólar                         0.628                        4       6.37
+##  6 Zújar                         2.54                        15       5.90
+##  7 Cúllar                        4.09                        23       5.62
+##  8 Cuevas del Campo              1.74                         6       3.44
+##  9 Benalúa                       3.31                        11       3.32
+## 10 Huéneja                       1.17                         3       2.56
+## # … with 36 more rows</code></pre>
+<p>Bueno, y vemos que mi pueblo, está el tercero con mayor tasa con 12.58 por 1000 habitantes o 1258 por cada 100 mil (si revisan la situación el próximo martes posiblemente cierren la activad esencial).</p>
+</div>
+<div id="inferencia" class="section level2">
+<h2>Inferencia</h2>
+<p>Bueno, pues podríamos considerar que los casos en un municipio <span class="math inline">\(y_i\)</span> la verosimilitud sería de la forma</p>
+<p><span class="math display">\[y_i \sim Poisson(X_i\cdot\theta_i)\]</span>
+dónde <span class="math inline">\(X_i\)</span> sería la población en miles y <span class="math inline">\(\theta_i\)</span> la tasa por cada 1000 habitantes.<br />
+Ahora el tema para hacer inferencia bayesiana es especificar la prior, y como comentan en el libro podríamos construir la prior utilizando los datos. El número de casos sigue una “predictive distribution” binomial negativa y con un poco de álgebra llegan a igualar la media y varianza de las tasas brutas y obtener los parámetros de esa binomial negativa. Aquí es cuándo llega lo de “estilo compadre”, en vez de considerar la binomial negativa, yo voy a ajustar una Gamma a las tasas brutas y calculo el <span class="math inline">\(\alpha\)</span> y <span class="math inline">\(\beta\)</span> de la gamma por el método de los momentos.</p>
+<p>Elegir una Gamma como Prior es en parte porque es distribución conjugada de la Poisson y la posterior se obtiene directamente.</p>
+<p>Sin más, sería resolver estas ecuaciones</p>
+<p><span class="math display">\[E[\text{tasas brutas}] = \dfrac{\alpha_{prior}}{\beta_{prior}}\]</span>
+<span class="math display">\[Var[\text{tasas brutas}] = \dfrac{\alpha_{prior}}{\beta_{prior}^{2}}\]</span></p>
+<p>Despejando</p>
+<pre class="r"><code>media = mean(g_nordeste$tasa_bruta)
+cuasivarianza = var(g_nordeste$tasa_bruta)
+(beta = media/cuasivarianza)</code></pre>
+<pre><code>## [1] 0.1028402</code></pre>
+<pre class="r"><code>(alpha = media* beta)</code></pre>
+<pre><code>## [1] 0.2312364</code></pre>
+<p>Por lo que usaremos como prior una <span class="math inline">\(Gamma(0.10, 0.23)\)</span>, que parece un poco débil, seguramente porque las tasas brutas son muy diferentes entre los municipios.</p>
+<p>Comparando la densidad de las tasas brutas con la densidad de la priori no parece mala elección</p>
+<pre class="r"><code># repito 10 veces cada tasa para tner suficients puntos para ver la densidad  estimada 
+df &lt;- data.frame(raw_thetas = rep(g_nordeste$tasa_bruta,10),   
+                 simulados = rgamma(nrow(g_nordeste)*10, alpha, beta) )
+
+df %&gt;% 
+    ggplot(aes(x=raw_thetas)) + 
+    geom_density(size = 1) +
+    geom_density(aes(x=simulados), col = &quot;darkred&quot;, linetype=2, size = 1)</code></pre>
+<p><img src="/post/2021-03-27-estimaci%C3%B3n-bayesiana-estilo-compadre_files/figure-html/unnamed-chunk-4-1.png" width="672" />
+Y ya sólo quedaría calcular la posterior para cada municipio. Que sería de esta forma</p>
+<p><span class="math display">\[P\left( \theta_i\mid data \right) \sim \text{Gamma}(\alpha_{prior} + y_i, \beta_{prior} + x_i)\]</span>
+Dónde <span class="math inline">\(y_i\)</span> es el número de casos en los últimos 14 días en cada municipio y <span class="math inline">\(x_i\)</span> los expuestos, es decir, la población (en miles) en cada municipio.
+Con esto ya podemos calcular, y añadimos también los intervalos de credibilidad</p>
+<pre class="r"><code>g_nordeste &lt;- g_nordeste %&gt;% 
+    mutate(
+        posterior_a = alpha + confirmados_pdia_14_dias,
+        posterior_b = beta + poblacion_miles,
+        posterior_mean = posterior_a/posterior_b, 
+        lb = qgamma(.025, posterior_a, posterior_b), 
+        ub = qgamma(.025, posterior_a, posterior_b, lower.tail = FALSE)
+    ) </code></pre>
+<p>Y si vemos los datos de mi pueblo y de alguno más.</p>
+<pre class="r"><code>g_nordeste %&gt;%
+    filter(lugar_de_residencia %in% c(&quot;Cortes de Baza&quot;,&quot;Castilléjar&quot;, &quot;Baza&quot;,&quot;Castril&quot;, &quot;Benamaurel&quot;, &quot;Zújar&quot;)) %&gt;%
+    select(lugar_de_residencia, poblacion_miles,
+           confirmados_pdia_14_dias,
+           tasa_bruta,
+           posterior_mean) %&gt;% 
+  arrange(-posterior_mean)</code></pre>
+<pre><code>## # A tibble: 6 x 5
+##   lugar_de_residen… poblacion_miles confirmados_pdia_… tasa_bruta posterior_mean
+##   &lt;chr&gt;                       &lt;dbl&gt;              &lt;dbl&gt;      &lt;dbl&gt;          &lt;dbl&gt;
+## 1 Cortes de Baza               1.84                 22     11.9           11.4  
+## 2 Zújar                        2.54                 15      5.90           5.75 
+## 3 Benamaurel                   2.26                  4      1.77           1.79 
+## 4 Baza                        20.4                  27      1.32           1.33 
+## 5 Castilléjar                  1.32                  1      0.757          0.865
+## 6 Castril                      2.02                  0      0              0.109</code></pre>
+<p>Pues no varía mucho la posterior con respecto a a la bruta. Puede deberse a dos motivos, uno, que al tener gran variabilidad las tasas brutas en los municipios considerados la información que comparten es poca comparada con la información específica que aporta cada municipio y la verosimilitud se impone a la prior y por otro lado, al no haber hecho full bayesian para estimar la prior , hemos utilizado los datos de los muncipios dos veces, una para obtener los parámetros de la prior y otra para la posterior, lo que puede llevar a sobreajuste. En los modelos jerárquicos bien estimados (y no al estilo compadre), si se estima bien, pero esto es una aproximación para entender un poco la lógica que hay debajo.</p>
+<p>Y ya solo falta pintar .</p>
+<pre class="r"><code>g_nordeste %&gt;% 
+    ggplot(aes(x=reorder(lugar_de_residencia, posterior_mean), y = posterior_mean)) +
+    geom_point(color = &quot;darkred&quot;, size = rel(2)) +
+    geom_errorbar(aes(ymin = lb , ymax = ub)) +
+    coord_flip() +
+    labs(x = &quot;municipio&quot;, y = &quot;Tasa x 1000 habitantes&quot;)</code></pre>
+<p><img src="/post/2021-03-27-estimaci%C3%B3n-bayesiana-estilo-compadre_files/figure-html/unnamed-chunk-7-1.png" width="672" />
+Los intervalos de credibilidad más pequeños se corresponden con los municipios con mayor población. A la vista de estos datos, se deberían usar este tipo de estimadores (bien hechos) sobre todo para estimar en municipios con una población menor, y no tomar decisiones basadas en una estimación puntual.</p>
+<p>Coda. Utilizando un glmer con family poisson (o con binomial si se modela la tasa directamente) con efecto aleatorio el lugar de residencia se obtienen prácticamente los mismos resultados</p>
+</div>
