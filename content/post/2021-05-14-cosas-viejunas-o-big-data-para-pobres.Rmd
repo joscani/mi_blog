@@ -9,6 +9,11 @@ description: ''
 topics: []
 ---
 
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE
+)
+```
+
 Antes, cuándo no había tanta capacidad de cálculo ni esa obsesión por cuántas más variables mejor, se trabajaban los datos, se seleccionaban las variables, se muestreaba o se trabajaba con los datos agregados. 
 De esto último sabe bastante el gran [Emilio Torres](https://torres.epv.uniovi.es/centon/el-centon-de-un-enano.html), autor entre otros del paquete [`xkcd`](https://cran.r-project.org/web/packages/xkcd/vignettes/xkcd-intro.pdf)
 
@@ -22,7 +27,7 @@ ejemplo
 ```
 Tenemos 15 filas, pero en realidad podemos condensar la información en 9,  que serían las combinaciones únicas 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 condensado <- ejemplo %>% 
   group_by(x1, x2 ) %>% 
