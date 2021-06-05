@@ -82,7 +82,33 @@ DT::datatable(train_local)
 
 ## Modelo bayesiano. 
 
-Pues ahora vamos a probar a hacer un modelo bayesiano jerárquico, podríamos hacer el equivalente a `glmer` usando la librería `rstanarm` y ajustar varias regresiones logísticas independientes, pero en vez de eso vamos a ver como ajustar directamente la distribución multinomial usando `brms` 
+Pues ahora vamos a probar a hacer un modelo bayesiano jerárquico, podríamos hacer el equivalente a `glmer` usando la librería `rstanarm` y ajustar varias regresiones logísticas independientes, pero en vez de eso vamos a ver como ajustar directamente la distribución multinomial usando `brms`. 
+
+
+Los modelos serían algo así como 
+
+$$
+\begin{equation} ans \sim Multinomial(\boldsymbol{\theta}) \end{equation}
+
+
+$$
+Dónde 
+$\boldsymbol{\theta} = \{\theta_{Rec}, \theta_{Best}, \theta_{Neut}, \theta_{\text{No_way}}\}$
+
+Dónde el inv logit de cada $\theta_i$ tiene un predictor lineal. en el caso de $\theta_{Best}$  sería  algo así como 
+
+$$P[y_{i}= Best]=\text{logit}^{-1} \left(\beta_{0} + \alpha_{j}^{\text{edad_cat}} + \alpha_{l}^{\text{valor_cliente}} \right)$$
+Dónde 
+$$\begin{eqnarray*}
+\alpha_{j}^{\text{edad_cat}}\sim & \mathcal{N}(0,\sigma_{\text{edad_cat}}^{2})\;j=1\ldots 5\\
+\alpha_{l}^{\text{valor_cliente}}\sim & \mathcal{N}(0,\sigma_{\text{valor_cliente}}^{2})\;l=1\ldots 10\\
+\end{eqnarray*}$$
+
+
+En la reparametrización que hace `brms` no es exactamente así, puesto que añade hiper-priors para considerar la distribución delas  $\sigma$ y toma "hyperpriors" para la media de esas $\sigma^s$ y la desviación típica de las mismas.  
+
++ Lo bueno de stan y de brms es que se puede modelar directamente la Multinomial, es decir, el número de "éxitos" en cada categoría dado un número de intentos. En `brms` podemos usar `trials` para especificarlo. Sería el equivalente al `weights` en `glmer`. De esta forma podemos trabajar con los datos agregados en vez de tenerlos individuales. Si tengo, 1000 clientes con edad < 21 y valor_cliente = 8, en vez de poner 1000 filas, pongo una columna de frecuencias, que es lo que hemos hecho. 
+
 
 
 ### Librerías
@@ -196,7 +222,16 @@ formula <- brmsformula(
 
 # get priors
 priors <- get_prior(formula, train_wider, family = multinomial())
+```
 
+Podemos ver las priors que ha considerado por defecto. Y vemos las priors que ha tomado para modelar la distribución de las $\sigma$ asociadas a `edad_cat` y `valor_cliente` 
+
+```{r}
+priors
+```
+
+
+```{r, message=FALSE, warning=FALSE}
 tictoc::tic("modelo mixto")
 model_multinomial2 <- brm(formula, train_wider, multinomial(), priors,
   iter = 4000, warmup = 1000, cores = 4, chains = 4,
