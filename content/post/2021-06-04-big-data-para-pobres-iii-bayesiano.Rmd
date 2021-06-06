@@ -18,6 +18,7 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE
 )
 ```
 
+
 Y seguimos dando vueltas a los datos de [post anteriores](https://muestrear-no-es-pecado.netlify.app/2021/05/21/big-data-pobres-ii-auc/). 
 Siempre hay quien dice que el bayesiano no sirve para big data y qué se acaba el universo antes de que termine de ajustar tu modelo (esto último creo que se lo he dicho yo alguna vez a [Carlos](https://www.datanalytics.com/)). 
 
@@ -95,19 +96,9 @@ $$
 Dónde 
 $\boldsymbol{\theta} = \{\theta_{Rec}, \theta_{Best}, \theta_{Neut}, \theta_{\text{No_way}}\}$
 
-Dónde el inv logit de cada $\theta_i$ tiene un predictor lineal. en el caso de $\theta_{Best}$  sería  algo así como 
-
-$$P[y_{i}= Best]=\text{logit}^{-1} \left(\beta_{0} + \alpha_{j}^{\text{edad_cat}} + \alpha_{l}^{\text{valor_cliente}} \right)$$
-Dónde 
-$$\begin{eqnarray*}
-\alpha_{j}^{\text{edad_cat}}\sim & \mathcal{N}(0,\sigma_{\text{edad_cat}}^{2})\;j=1\ldots 5\\
-\alpha_{l}^{\text{valor_cliente}}\sim & \mathcal{N}(0,\sigma_{\text{valor_cliente}}^{2})\;l=1\ldots 10\\
-\end{eqnarray*}$$
 
 
-En la reparametrización que hace `brms` no es exactamente así, puesto que añade hiper-priors para considerar la distribución delas  $\sigma$ y toma "hyperpriors" para la media de esas $\sigma^s$ y la desviación típica de las mismas.  
-
-+ Lo bueno de stan y de brms es que se puede modelar directamente la Multinomial, es decir, el número de "éxitos" en cada categoría dado un número de intentos. En `brms` podemos usar `trials` para especificarlo. Sería el equivalente al `weights` en `glmer`. De esta forma podemos trabajar con los datos agregados en vez de tenerlos individuales. Si tengo, 1000 clientes con edad < 21 y valor_cliente = 8, en vez de poner 1000 filas, pongo una columna de frecuencias, que es lo que hemos hecho. 
+Lo bueno de stan y de brms es que se puede modelar directamente la Multinomial, es decir, el número de "éxitos" en cada categoría dado un número de intentos. En `brms` podemos usar `trials` para especificarlo. Sería el equivalente al `weights` en `glmer`. De esta forma podemos trabajar con los datos agregados en vez de tenerlos individuales. Si tengo, 1000 clientes con edad < 21 y valor_cliente = 8, en vez de poner 1000 filas, pongo una columna de frecuencias, que es lo que hemos hecho. 
 
 
 
@@ -260,6 +251,76 @@ E incluso ver el modelo en stan
 model_multinomial2$model
 ```
 
+
+Viendo el código en stan que genera `brms` utiliza parametrización con `multinomial_lpmf` que toma el log de la probabilidad de la multinomial y usa softmax sobre el predictor lineal. [multivariate_discrete_stan](https://mc-stan.org/docs/2_26/functions-reference/multivariate-discrete-distributions.html)
+
+En la parte de functions tiene 
+```
+
+real multinomial_logit2_lpmf(int[] y, vector mu) {
+      return multinomial_lpmf(y | softmax(mu));
+  }
+```
+Y en la de model
+
+```
+   for (n in 1:N) {
+      target += multinomial_logit2_lpmf(Y[n] | mu[n]);
+     }
+```
+
+
+Y en la parte del predictor lineal `mu[n]` es dónde ha ido añadiendo los group levels effects. 
+
+Por ejemplo la parte de la edad_cat para la categoría Best está en la parte de `transformed parameters`  dónde z_1[1] se modela como normal y sd_1 como una t de student
+
+```
+r_1_muBest_1 = (sd_1[1] * (z_1[1]));
+```
+
+Y en la parte de `model` va añadiendo términos al muBest que es al final el que entra en la parte de la verosimilitud. 
+
+```
+muBest[n] += r_1_muBest_1[J_1[n]] * Z_1_muBest_1[n] + r_2_muBest_1[J_2[n]] * Z_2_muBest_1[n];
+```
+
+Aquí añade el efecto de la edad  r_1_muBest_1[J_1[n]]  lo multiplica por Z_1_mubest_1[n] que es el indicador en los datos de la matriz Z para los efectos aleatorios (todo igual a 1) y luego añade el efecto de la variable valor_cliente. 
+
+
+
+La verdad es que eel bloque `model` que genera `brms` es un poco complicado. Imagino que genera código optimizado. Para los que quieran verlo todo con stan directamente este [libro](https://vasishth.github.io/bayescogsci/book/modeling-multiple-categorical-responses.html#sec:mult) tiene un ejemplo básico
+
+En `brms` tenemos la función `make_standata` que nos genera los datos tal y como se los pasa a Stan. 
+
+```{r}
+datos_stan <- make_standata(formula, data = train_wider, 
+              family = multinomial(),
+              prior =  priors)
+```
+
+```{r}
+names(datos_stan)
+```
+```{r}
+# datos
+datos_stan$N
+
+# numero de niveles edad
+datos_stan$N_1
+
+# numero niveles valor_cliente
+datos_stan$N_2
+```
+En los J_1, J_2, está codificado a que nivel de edad y valor_cliente perteneces esa fila. J_3 y J_4 es igual a J_1 y J_2. Lo repite para cada categoría de respuesta. 
+
+```{r}
+datos_stan$J_1
+```
+```{r}
+datos_stan$J_2
+```
+
+
 Pero yo estoy interesado en ver 2 cosas, como de bien predice sobre test y cuál es la probabilidad de cada clase condicionada a cada perfil
 
 **Predicción**
@@ -383,7 +444,7 @@ df_pintar %>%
 
 En fin, que se puede hacer estadística bayesiana aún con grandes volúmenes de datos, si te conviertes en lo que mi amigo [Antonio](https://fronkonstin.com/) llama un "artesano del dato". 
 
-Feliz finde
+Feliz semana
 
 
 
