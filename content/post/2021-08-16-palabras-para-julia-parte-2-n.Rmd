@@ -191,9 +191,6 @@ module decision_tree_app
 
 using MLJ, CSV, DataFrames, MLJDecisionTreeInterface
 
-
- que 
-
 function julia_main()::Cint
     try
         real_main()
