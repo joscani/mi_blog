@@ -1,0 +1,410 @@
+---
+title: Palabras para Julia ( Parte 2/n)
+author: jlcr
+date: '2021-08-16'
+slug: palabras-para-julia-parte-2-n
+categories:
+  - Julia
+  - ciencia de datos
+tags:
+  - Julia
+  - Lenguajes de programación
+description: ''
+topics: []
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<div id="introducción" class="section level2">
+<h2>Introducción</h2>
+<p>¿Qué os parecería tener un modelo guardado y un binario en linux que tomando como parámetros el modelo y el dataset a predecir guardara las predicciones en un csv?</p>
+<p>Y todo eso que funcione en cualquier Linux, de forma que puedas copiar esa aplicación de un Ubuntu a un EC2 con amazon linux (un centos) y que funcione igual sin tener que tener Julia instalado en el EC2.</p>
+<p>Y no estoy hablando de tener un docker o tener un entorno de conda dónde lo despliegas y tu script dónde se predice necesita ser interpretado, sino de una aplicación compilada dónde tiene el runtime de Julia y todo lo necesario para correr. De hecho la estructura de esa aplicación sería algo así.</p>
+<pre class="bash"><code> $ ▶ tree -L 1 ../bin_blog
+../bin_blog
+├── artifacts
+├── bin
+└── lib
+</code></pre>
+<p>Bueno, pues vamos a ver cómo se consigue eso utilizando el paquete <a href="https://github.com/JuliaLang/PackageCompiler.jl"><code>PackageCompiler</code></a> En primer lugar algunas consideraciones sobre latencia y precompilados que podéis ver en el video de <a href="https://www.youtube.com/watch?v=7gHYrZ4QWZs">Kristoffer Carlson</a>.</p>
+<ul>
+<li>Julia tiene los paquetes precompilados, por lo que cuando arrancas el pc y haces <code>using paquete</code> tarda un rato.</li>
+<li>Una vez compilado, la primera vez que lo invocas tarda un tiempo.</li>
+<li>Aunque ya hayas hecho <code>using paquete</code> la primera vez que usas una función también tiene que compilarla y tarda otro rato.</li>
+</ul>
+<p>por ejemplo, vemos que la primera vez que hago <code>using Plots</code> tarda unos 3 segundos, o que la primera vez que uso la función <code>plot</code> también tarda, pero la siguiente vez es muy rápido.</p>
+<pre class="bash"><code>julia&gt; @time using Plots
+  3.267061 seconds (7.93 M allocations: 551.989 MiB, 3.89% gc time, 0.17% compilation time)
+
+julia&gt; @time using Plots
+  0.666359 seconds (665.66 k allocations: 37.314 MiB, 6.76% gc time, 99.99% compilation time)
+
+
+julia&gt; @time p = plot(rand(2,2))
+  2.436100 seconds (3.11 M allocations: 186.676 MiB, 7.61% gc time, 57.23% compilation time)
+[ Info: Precompiling GR_jll [d2c73de3-f751-5644-a686-071e5b155ba9]
+
+julia&gt; @time p = plot(rand(2,2))
+  0.000883 seconds (3.93 k allocations: 228.672 KiB)</code></pre>
+<p>Pero, ¿no era una de las características de Julia su velocidad, cómo podemos apañar esto?. Pues hay varias formas.</p>
+<ul>
+<li>Crear un archivo <code>startup.jl</code> en <code>\.julia\config\</code> dónde escribamos lo que queremos que se cargue al iniciar julia.</li>
+<li>Crear una sysimage de julia con <a href="https://julialang.github.io/PackageCompiler.jl/dev/sysimages.html"><code>PackageCompiler</code></a> de forma que podamos hacer algo como <code>julia --sysimage mi_sysimage.so</code> y se inicie Julia con los paquetes que queramos ya compilados y cargados.</li>
+</ul>
+<p>El paquete <code>PackageCompiler</code> permite también crear una aplicación de forma que crea una sysimage de julia junto con un script con una función main que es la que se ejecuta al llamar al binario que crea. La ventaja de esta aproximación es que podemos crear un binario que funcione en cualquier linux aunque no tengamos Julia instalado.</p>
+</div>
+<div id="objetivo" class="section level2">
+<h2>Objetivo</h2>
+<p>El objetivo es construir un “Motor de Modelos” (recuerdos a mi amigo Roberto Sancho) que funciones en cualquier linux, y que dado un modelo previamente entrenado y la ruta de un fichero con los datos, haga la predicción del modelo y escriba un csv con el resultado.</p>
+<p>Al final se podría usar de la siguiente forma</p>
+<pre class="bash"><code>motor_modelos modelo_entrenado.jlso datos_to_predict.csv resultado.csv</code></pre>
+<p>En las pruebas que he hecho, para predecir un fichero de 5 millones de filas y escribir el csv con el resultado de la predicción de un modelo <code>randomForest</code> ha tardado unos 15 segundos en todo el proceso.</p>
+</div>
+<div id="creando-el-entorno-necesario" class="section level2">
+<h2>Creando el entorno necesario</h2>
+<p>Lo primero que tenemos que hacer es seguir el proceso como para crear un paquete en julia.
+Iniciamos julia en el REPL y entrando en el modo paquete con <code>]</code> utilizamos <code>generate</code></p>
+<pre class="bash"><code>(@v1.6) pkg&gt; generate decision_tree_app
+  Generating  project decision_tree_app:
+    decision_tree_app/Project.toml
+    decision_tree_app/src/decision_tree_app.jl</code></pre>
+<p>Esto crea el directorio decision_tree_app así como un Project.toml dónde se va a ir guardando la referencia y las versiones de las librerías que usemos, y también crea el fichero <code>src/decision_tree_app.jl</code> con la estructura mínima.</p>
+<pre class="bash"><code>╭─ jose @ jose-PROX15 ~
+│
+╰─ $ ▶ cat decision_tree_app/src/decision_tree_app.jl 
+module decision_tree_app
+
+greet() = print(&quot;Hello World!&quot;)
+
+end # module
+</code></pre>
+<p>Pues sobre esta base es la que vamos a trabajar. Ahora tenemos que activar el entorno con</p>
+<pre class="bash"><code>(@v1.6) pkg&gt; activate .
+  Activating environment at `~/decision_tree_app/Project.toml`
+ </code></pre>
+<p>De esta forma cada vez que añadamos un paquete con <code>add nombrepquete</code> se queda guardado la referencia en el el <code>Project.toml</code> y se creará un <code>Manifest.toml</code>, estos dos archivos son los que nos servirán para reproducir el mismo entorno en otro sitio, equivalente a un requirements en python.</p>
+</div>
+<div id="crear-la-aplicación" class="section level2">
+<h2>Crear la aplicación</h2>
+<p>En el paquete <code>PackageCompiler</code> existe la función <code>create_app</code> que tomando como argumentos, el directorio de la aplicación, directorio dónde compilar y uno o varios ficheros de ejemplo del flujo que se va a realizar, creará la apliación compilada.</p>
+<div id="fichero-de-precompilación" class="section level3">
+<h3>Fichero de precompilación</h3>
+<p>Es importante tener un fichero de precompilación que sea ejemplo simple de lo que tiene que hacer la aplicación. A saber, leer un modelo, leer unos datos, predecir y escribir el resultado.</p>
+<p>Para eso, entrenamos un modelo sobre iris, y guardamos el modelo</p>
+<p><strong>Fichero train.jl</strong></p>
+<pre class="julia"><code>
+# Training model julia
+using CSV,CategoricalArrays, DataFrames, MLJ
+
+
+df1 = CSV.read(&quot;data/iris.csv&quot;, DataFrame)
+
+const target =  CategoricalArray(df1[:, :Species])
+const X = df1[:, Not(:Species)]
+
+
+Tree = @load RandomForestClassifier pkg=DecisionTree
+tree = Tree(n_trees = 20)
+tree.max_depth = 3
+
+mach = machine(tree, X, target)
+
+train, test = partition(eachindex(target), 0.7, shuffle=true)
+
+fit!(mach, rows=train)
+
+
+MLJ.save(&quot;mimodelo.jlso&quot;, mach, compression=:gzip)
+
+</code></pre>
+<p>Y una vez que tenemos el modelo guardado creamos el fichero de precompilación que pasaremos como argumento a <code>create_app</code></p>
+<p><strong>Fichero precomp_file.jl en directorio src</strong></p>
+<p>En este fichero al llamar a las funciones <code>CSV.read</code>, <code>predict</code>, o <code>CSV.write</code> se consigue que al crear la aplicación compilada esas funciones se compilen y la latencia sea mínima.</p>
+<pre class="julia"><code>using MLJ, CSV, DataFrames, MLJDecisionTreeInterface
+
+# uso rutas absolutas
+df1 = CSV.read(&quot;/home/jose/Julia_projects/decision_tree_app/data/iris.csv&quot;, DataFrame)
+X = df1[:, Not(:Species)]
+
+predict_only_mach = machine(&quot;/home/jose/Julia_projects/decision_tree_app/mimodelo.jlso&quot;)
+
+ŷ = predict(predict_only_mach, X) 
+
+
+predict_mode(predict_only_mach, X)
+
+niveles = levels.(ŷ)[1]
+
+res = pdf(ŷ, niveles) # con pdf nos da la probabilidad de cada nivel
+res_df = DataFrame(res,:auto)
+rename!(res_df, niveles)
+
+CSV.write(&quot;/home/jose/Julia_projects/decision_tree_app/data/predicciones.csv&quot;, res_df)
+</code></pre>
+<p>Cuando compilamos una aplicación con PackageCompiler lo que se ejecuta es la función julia_main que se encuentre en el módulo que creamos con el mismo nombre que el nombre de la aplicación.</p>
+<p><strong>Fichero decision_tree_app.jl en src</strong></p>
+<pre class="julia"><code>module decision_tree_app
+
+using MLJ, CSV, DataFrames, MLJDecisionTreeInterface
+
+
+ que 
+
+function julia_main()::Cint
+    try
+        real_main()
+    catch
+        Base.invokelatest(Base.display_error, Base.catch_stack())
+        return 1
+    end
+    return 0
+end
+
+# ARGS son los argumentos pasados por consola 
+
+function real_main()
+    if length(ARGS) == 0
+        error(&quot;pass arguments&quot;)
+    end
+
+# Read model
+    modelo = machine(ARGS[1])
+# read data. El fichero qeu pasemos tiene que tener solo las X.(con su nombre)
+    X = CSV.read(ARGS[2], DataFrame, tasks=10)
+# Predict    
+    ŷ = predict(modelo, X)            # predict
+    niveles = levels.(ŷ)[1]           # get levels of target
+    res = pdf(ŷ, niveles)             # predict probabilities for each level
+    
+    res_df = DataFrame(res,:auto)     # convert to DataFrame
+    rename!(res_df, niveles)          # Column rename
+    CSV.write(ARGS[3], res_df)        # Write in csv
+end
+
+
+end # module
+</code></pre>
+<p>Así nos queda la estructura</p>
+<pre class="bash"><code> tree -L 1 src/
+src/
+├── decision_tree_app.jl
+├── precomp_file.jl
+└── train.jl</code></pre>
+<p>Ahora ya podemos compilar la aplicación</p>
+<pre class="julia"><code>
+using PackageCompiler
+
+create_app(&quot;../decision_tree_app&quot;, &quot;../bin_blog&quot;, precompile_execution_file=&quot;../decision_tree_app/src/precomp_file.jl&quot;, force=true, filter_stdlibs = true)
+
+</code></pre>
+<p>Y después de unos 30 minutos ya tenemos en el directorio bin_blog todo lo necesario, el runtime de julia embebido, las librerías compiladas , etcétera, de forma que copiando esa estructura en otro ordenador (con linux) ya funcionaría nuestra app sin tener Julia instalado.</p>
+<pre><code>
+tree -L 1 bin_blog/
+bin_blog/
+├── artifacts
+├── bin
+└── lib</code></pre>
+<p>Por ejemplo en lib tenemos</p>
+<pre><code>total 272
+drwxrwxr-x 3 jose jose   4096 ago 14 10:37 ./
+drwxrwxr-x 5 jose jose   4096 ago 14 10:37 ../
+drwxrwxr-x 2 jose jose   4096 ago 14 10:37 julia/
+lrwxrwxrwx 1 jose jose     15 ago 14 10:37 libjulia.so -&gt; libjulia.so.1.6*
+lrwxrwxrwx 1 jose jose     15 ago 14 10:37 libjulia.so.1 -&gt; libjulia.so.1.6*
+-rwxr-xr-x 1 jose jose 266232 ago 14 10:37 libjulia.so.1.6*</code></pre>
+<p>y en lib/julia tiene este aspecto</p>
+<pre><code>drwxrwxr-x 2 jose jose     4096 ago 14 10:37 ./
+drwxrwxr-x 3 jose jose     4096 ago 14 10:37 ../
+lrwxrwxrwx 1 jose jose       15 ago 14 10:37 libamd.so -&gt; libamd.so.2.4.6*
+lrwxrwxrwx 1 jose jose       15 ago 14 10:37 libamd.so.2 -&gt; libamd.so.2.4.6*
+-rwxr-xr-x 1 jose jose    39059 ago 14 10:37 libamd.so.2.4.6*
+lrwxrwxrwx 1 jose jose       18 ago 14 10:37 libatomic.so.1 -&gt; libatomic.so.1.2.0*
+-rwxr-xr-x 1 jose jose   147600 ago 14 10:37 libatomic.so.1.2.0*
+lrwxrwxrwx 1 jose jose       15 ago 14 10:37 libbtf.so -&gt; libbtf.so.1.2.6*
+lrwxrwxrwx 1 jose jose       15 ago 14 10:37 libbtf.so.1 -&gt; libbtf.so.1.2.6*
+-rwxr-xr-x 1 jose jose    13108 ago 14 10:37 libbtf.so.1.2.6*
+lrwxrwxrwx 1 jose jose       16 ago 14 10:37 libcamd.so -&gt; libcamd.so.2.4.6*
+lrwxrwxrwx 1 jose jose       16 ago 14 10:37 libcamd.so.2 -&gt; libcamd.so.2.4.6*
+-rwxr-xr-x 1 jose jose    43470 ago 14 10:37 libcamd.so.2.4.6*
+-rwxr-xr-x 1 jose jose    28704 ago 14 10:37 libccalltest.so*
+-rwxr-xr-x 1 jose jose    39128 ago 14 10:37 libccalltest.so.debug*
+lrwxrwxrwx 1 jose jose       19 ago 14 10:37 libccolamd.so -&gt; libccolamd.so.2.9.6*
+lrwxrwxrwx 1 jose jose       19 ago 14 10:37 libccolamd.so.2 -&gt; libccolamd.so.2.9.6*
+-rwxr-xr-x 1 jose jose    47652 ago 14 10:37 libccolamd.so.2.9.6*
+lrwxrwxrwx 1 jose jose       20 ago 14 10:37 libcholmod.so -&gt; libcholmod.so.3.0.13*
+lrwxrwxrwx 1 jose jose       20 ago 14 10:37 libcholmod.so.3 -&gt; libcholmod.so.3.0.13*
+-rwxr-xr-x 1 jose jose  1005880 ago 14 10:37 libcholmod.so.3.0.13*
+lrwxrwxrwx 1 jose jose       18 ago 14 10:37 libcolamd.so -&gt; libcolamd.so.2.9.6*
+lrwxrwxrwx 1 jose jose       18 ago 14 10:37 libcolamd.so.2 -&gt; libcolamd.so.2.9.6*
+-rwxr-xr-x 1 jose jose    31250 ago 14 10:37 libcolamd.so.2.9.6*
+lrwxrwxrwx 1 jose jose       16 ago 14 10:37 libcurl.so -&gt; libcurl.so.4.7.0*
+lrwxrwxrwx 1 jose jose       16 ago 14 10:37 libcurl.so.4 -&gt; libcurl.so.4.7.0*
+-rwxr-xr-x 1 jose jose   654080 ago 14 10:37 libcurl.so.4.7.0*
+-rwxr-xr-x 1 jose jose    22120 ago 14 10:37 libdSFMT.so*
+-rwxr-xr-x 1 jose jose   758680 ago 14 10:37 libgcc_s.so.1*
+lrwxrwxrwx 1 jose jose       20 ago 14 10:37 libgfortran.so.4 -&gt; libgfortran.so.4.0.0*
+</code></pre>
+<p>y en bin</p>
+<pre class="bash"><code>total 245180
+drwxrwxr-x 2 jose jose      4096 ago 14 10:50 ./
+drwxrwxr-x 5 jose jose      4096 ago 14 10:37 ../
+-rwxrwxr-x 1 jose jose     17928 ago 14 10:50 decision_tree_app*
+-rwxrwxr-x 1 jose jose 251030272 ago 14 10:50 decision_tree_app.so*</code></pre>
+</div>
+</div>
+<div id="utilizando-la-aplicación" class="section level2">
+<h2>Utilizando la aplicación</h2>
+<p>Lo primero que comprobamos es si la aplicación funciona con el modelo que tenemos sobre iris.</p>
+<p>Intentamos predecir un fichero tal que así</p>
+<pre class="bash"><code>head test_to_predict.csv 
+Sepal.Length,Sepal.Width,Petal.Length,Petal.Width
+5.1,3.5,1.4,0.2
+4.9,3,1.4,0.2
+4.7,3.2,1.3,0.2
+4.6,3.1,1.5,0.2
+5,3.6,1.4,0.2
+5.4,3.9,1.7,0.4
+4.6,3.4,1.4,0.3
+5,3.4,1.5,0.2
+4.4,2.9,1.4,0.2
+</code></pre>
+<p>Ahora ejecutamos la app pasándole el modelo guardado en <code>train.jl</code> y el csv</p>
+<pre class="bash"><code>╰─ $ ▶ time ../bin_blog/bin/decision_tree_app mimodelo.jlso test_to_predict.csv predicho.csv
+
+real    0m2,046s
+user    0m2,344s
+sys 0m0,581s</code></pre>
+<pre class="bash"><code>╰─ $ ▶ head -20 predicho.csv 
+setosa,versicolor,virginica
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+0.9,0.1,0.0
+0.95,0.05,0.0
+1.0,0.0,0.0
+1.0,0.0,0.0
+0.95,0.05,0.0</code></pre>
+</div>
+<div id="uso-como-motor-para-predecir." class="section level2">
+<h2>Uso como motor para predecir.</h2>
+<p>Una vez tenemos la app queremos utilizarla con otros modelos y otros datos sin necesidad de tener que compilar de nuevo.</p>
+<p>Lo primero es usar las mismas versiones de las librerías que hemos usado en la app. Para eso copiamos los archivos Project.toml y Manifest.toml en otro directorio y activamos el entorno con <code>activate .</code> e instalamos los paquetes con <code>instanstiate</code></p>
+<pre class="bash"><code>
+─ $ ▶ cd entorno_modelos/
+╭─ jose @ jose-PROX15 ~/Julia_projects/entorno_modelos
+│
+╰─ $ ▶ julia 
+               _
+   _       _ _(_)_     |  Documentation: https://docs.julialang.org
+  (_)     | (_) (_)    |
+   _ _   _| |_  __ _   |  Type &quot;?&quot; for help, &quot;]?&quot; for Pkg help.
+  | | | | | | |/ _` |  |
+  | | |_| | | | (_| |  |  Version 1.6.2 (2021-07-14)
+ _/ |\__&#39;_|_|_|\__&#39;_|  |  Official https://julialang.org/ release
+|__/                   |
+
+(@v1.6) pkg&gt; activate .
+  Activating environment at `~/Julia_projects/entorno_modelos/Project.toml`
+
+(decision_tree_app) pkg&gt; instantiate
+
+</code></pre>
+<p>Y ya podemos entrenar un nuevo modelo. En este caso voy a entrenar un modelo sobre los datos del precio de las viviendas en Boston, pero dónde he creado variables categórica que diferencie entre si el precio es mayor que 20 o menor, variable medv_20 con niveles (G20, NG20)</p>
+<pre class="bash"><code>─ $ ▶ head data/boston.csv 
+&quot;crim&quot;,&quot;zn&quot;,&quot;indus&quot;,&quot;chas&quot;,&quot;nox&quot;,&quot;rm&quot;,&quot;age&quot;,&quot;dis&quot;,&quot;rad&quot;,&quot;tax&quot;,&quot;ptratio&quot;,&quot;lstat&quot;,&quot;medv_20&quot;
+0.00632,18,2.31,0,0.538,6.575,65.2,4.09,1,296,15.3,4.98,&quot;G20&quot;
+0.02731,0,7.07,0,0.469,6.421,78.9,4.9671,2,242,17.8,9.14,&quot;G20&quot;
+0.02729,0,7.07,0,0.469,7.185,61.1,4.9671,2,242,17.8,4.03,&quot;G20&quot;
+0.03237,0,2.18,0,0.458,6.998,45.8,6.0622,3,222,18.7,2.94,&quot;G20&quot;
+0.06905,0,2.18,0,0.458,7.147,54.2,6.0622,3,222,18.7,5.33,&quot;G20&quot;
+0.02985,0,2.18,0,0.458,6.43,58.7,6.0622,3,222,18.7,5.21,&quot;G20&quot;
+0.08829,12.5,7.87,0,0.524,6.012,66.6,5.5605,5,311,15.2,12.43,&quot;G20&quot;
+0.14455,12.5,7.87,0,0.524,6.172,96.1,5.9505,5,311,15.2,19.15,&quot;G20&quot;
+0.21124,12.5,7.87,0,0.524,5.631,100,6.0821,5,311,15.2,29.93,&quot;NG20&quot;
+</code></pre>
+<p>Y nuestro fichero de entrenamiento es el siguiente. Dejo solo lo de entrenar y guardar el modelo, otro día vemos la validación cruzada etc..</p>
+<pre class="julia"><code># Training model julia
+using CSV,CategoricalArrays, DataFrames, MLJ
+
+
+df1 = CSV.read(&quot;data/boston.csv&quot;, DataFrame)
+
+const target =  CategoricalArray(df1[:, :medv_20])
+const X = df1[:, Not(:medv_20)]
+
+Tree = @load RandomForestClassifier pkg=DecisionTree
+tree = Tree(n_trees = 20)
+tree.max_depth = 5
+
+
+mach = machine(tree, X, target)
+
+train, test = partition(eachindex(target), 0.7, shuffle=true)
+
+fit!(mach, rows=train)
+
+
+MLJ.save(&quot;boston_rf.jlso&quot;, mach, compression=:gzip)</code></pre>
+<p>Y ya podemos usar nuestra aplicación compilada para predecir con el modelo que acabamos de entrenar. Para simular más un proceso real, usamos el conjunto de datos de boston pero con 5 millones de filas.</p>
+<p>Fichero sin la variable a predecir</p>
+<pre class="bash"><code>╰─ $ ▶ head -10  boston_to_predict.csv 
+crim,zn,indus,chas,nox,rm,age,dis,rad,tax,ptratio,lstat
+0.00632,18,2.31,0,0.538,6.575,65.2,4.09,1,296,15.3,4.98
+0.02731,0,7.07,0,0.469,6.421,78.9,4.9671,2,242,17.8,9.14
+0.02729,0,7.07,0,0.469,7.185,61.1,4.9671,2,242,17.8,4.03
+0.03237,0,2.18,0,0.458,6.998,45.8,6.0622,3,222,18.7,2.94
+0.06905,0,2.18,0,0.458,7.147,54.2,6.0622,3,222,18.7,5.33
+0.02985,0,2.18,0,0.458,6.43,58.7,6.0622,3,222,18.7,5.21
+0.08829,12.5,7.87,0,0.524,6.012,66.6,5.5605,5,311,15.2,12.43
+0.14455,12.5,7.87,0,0.524,6.172,96.1,5.9505,5,311,15.2,19.15
+0.21124,12.5,7.87,0,0.524,5.631,100,6.0821,5,311,15.2,29.93
+
+
+</code></pre>
+<pre class="bash"><code>╰─ $ ▶ wc -l  boston_to_predict.csv 
+5060001 boston_to_predict.csv
+</code></pre>
+<p>Y ahora utilizamos nuestreo “Motor de Modelos” . Y en mi pc, tarda en predecir y escribir el resultado en torno a los 15 segundos.</p>
+<pre class="bash"><code>╰─ $ ▶ time ../bin_blog/bin/decision_tree_app boston_rf.jlso boston_to_predict.csv res.csv
+
+real    0m14,080s
+user    0m28,949s
+sys 0m3,442s
+</code></pre>
+<pre class="bash"><code>╰─ $ ▶ wc -l res.csv 
+5060001 res.csv
+╭─ jose @ jose-PROX15 ~/Julia_projects/entorno_modelos
+│
+╰─ $ ▶ head -10 res.csv 
+G20,NG20
+0.95,0.05
+0.95,0.05
+1.0,0.0
+1.0,0.0
+1.0,0.0
+1.0,0.0
+0.85,0.15
+0.4,0.6
+0.25,0.75
+
+</code></pre>
+</div>
+<div id="conclusión" class="section level2">
+<h2>Conclusión</h2>
+<p>Esto es sólo un ejemplo de como crear una aplicación compilada con Julia, en este caso para temas de “machín lenin”, pero podría ser para otra cosa.</p>
+<p>Como ventaja, que podemos crear un tar.gz con toda la estructura creada en directorio <code>bin_blog</code> y ponerlo en otro linux y qué funcione sin necesidad de que sea la misma distribución de linux ni de que esté Julia instalado. Esto podría ser útil en entornos productivos en los que haya restricciones a la hora de instalar software.</p>
+<p>Aún tengo que explorar como leer y escribir ficheros de s3 con <a href="https://github.com/JuliaCloud/AWSS3.jl">AWSS3.jl</a> y más cosas relacionadas.</p>
+<p>Hasta otra.</p>
+</div>

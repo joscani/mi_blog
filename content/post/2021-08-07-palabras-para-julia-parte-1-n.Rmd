@@ -125,7 +125,7 @@ Como tenemos la variable `Cens`que es categórica necesitamos codificarla, aquí
 ```{julia}
 # Definimos un ContinuosEncoder, ver la ayuda con ?ContinousEncoder en el repl de julia
 
-  ContinuousEncoder(one_hot_ordered_factors=false, drop_last=false)
+  
 
   # Unsupervised model for arranging all features (columns) of a table to have Continuous element scitype, by applying the following protocol to each feature ftr:
   # 
