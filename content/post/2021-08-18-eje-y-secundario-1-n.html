@@ -1,0 +1,72 @@
+---
+title: '¿Dos ejes de ordenadas? (Parte 1/n) '
+author: jlcr
+date: '2021-08-18'
+slug: eje-y-secundario-1-n
+categories:
+  - gráficos
+tags: []
+description: ''
+topics: [gráficos]
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<p>Anoche me iba a ir a la cama tras escuchar un podcast, pero al final estuve entretenido debatiendo con Raúl Vaquerizo, Alberto González Almuiña y Jesús Lagos , sobre los gráficos con dos ejes de ordenadas. Aquí os dejo el <a href="https://twitter.com/joscani/status/1427722746927190027">tweet</a> que puso Raúl.</p>
+<p>Pues yendo al <a href="https://analisisydecision.es/grafico-con-eje-secundario-en-ggplot2/">post</a> que puso Raúl construía el siguiente gráfico.</p>
+<pre class="r"><code>library(tidyverse)
+library(magrittr)
+library(ggplot2)
+url=&#39;http://www.businessandeconomics.mq.edu.au/our_departments/Applied_Finance_and_Actuarial_Studies/acst_docs/glms_for_insurance_data/data/claimslong.csv&#39;
+df &lt;- read.csv(url)
+
+resumen &lt;- df %&gt;% group_by(period) %&gt;%
+  summarise(pct_exposicion = n(),
+            frecuencia = sum(claim)/n())
+
+
+g2 &lt;- ggplot(resumen,aes(x = period)) + 
+  geom_col(aes(y = pct_exposicion), fill=&quot;yellow&quot;,alpha=0.7) + 
+  geom_line(aes(y=frecuencia * 500000 , group=), group = 1,color=&quot;red&quot;) + 
+  geom_text(aes(y = frecuencia * 500000, label = paste(round(frecuencia*100),&#39;%&#39;)),
+            vjust = 1.4, color = &quot;red&quot;, size = 2) +
+  scale_y_continuous(sec.axis = sec_axis(~.* 500000, name = &quot;Frecuencia [%]&quot;)) 
+
+g2</code></pre>
+<p><img src="/post/2021-08-18-eje-y-secundario-1-n_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<p>Y bueno, no está mal, pero no me acaba de gustar, sobre todo porque al fin y al cabo todos sus períodos tienen el mismo valor</p>
+<pre class="r"><code>resumen</code></pre>
+<pre><code>## # A tibble: 3 × 3
+##   period pct_exposicion frecuencia
+##    &lt;int&gt;          &lt;int&gt;      &lt;dbl&gt;
+## 1      1          40000      0.131
+## 2      2          40000      0.141
+## 3      3          40000      0.156</code></pre>
+<p>Ahora que lo pienso, casi que con la tabla valdría. Pero que pasaría si tenemos diferentes valores</p>
+<pre class="r"><code>set.seed(155)
+resumen %&lt;&gt;% 
+  mutate(pct_exposicion = pct_exposicion * 10*runif(3))
+resumen</code></pre>
+<pre><code>## # A tibble: 3 × 3
+##   period pct_exposicion frecuencia
+##    &lt;int&gt;          &lt;dbl&gt;      &lt;dbl&gt;
+## 1      1        315266.      0.131
+## 2      2        173523.      0.141
+## 3      3        304162.      0.156</code></pre>
+<pre class="r"><code>ggplot(resumen,aes(x = period)) + 
+  geom_col(aes(y = pct_exposicion), fill=&quot;yellow&quot;,alpha=0.7) + 
+  geom_line(aes(y=frecuencia * 500000 , group=), group = 1,color=&quot;red&quot;) + 
+  geom_text(aes(y = frecuencia * 500000, label = paste(round(frecuencia*100),&#39;%&#39;)),
+            vjust = 1.4, color = &quot;red&quot;, size = 2) +
+  scale_y_continuous(sec.axis = sec_axis(~.* 500000, name = &quot;Frecuencia [%]&quot;)) </code></pre>
+<p><img src="/post/2021-08-18-eje-y-secundario-1-n_files/figure-html/unnamed-chunk-4-1.png" width="672" />
+Me gusta aún menos este gráfico, yo propongo el siguiente en su lugar.</p>
+<pre class="r"><code>resumen %&gt;% 
+  ggplot(aes(x = period, y = frecuencia)) +
+  geom_point(aes(size=pct_exposicion)) + 
+  geom_line() +
+  scale_size_continuous(range=c(4, 10)) +
+  scale_y_continuous(labels = scales::percent)</code></pre>
+<p><img src="/post/2021-08-18-eje-y-secundario-1-n_files/figure-html/unnamed-chunk-5-1.png" width="672" />
+Dónde representamos la variable frecuencia en el eje de ordenadas y con el tamaño de los puntos representamos la otra variable.</p>
