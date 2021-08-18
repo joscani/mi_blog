@@ -34,7 +34,7 @@ resumen <- df %>% group_by(period) %>%
 
 g2 <- ggplot(resumen,aes(x = period)) + 
   geom_col(aes(y = pct_exposicion), fill="yellow",alpha=0.7) + 
-  geom_line(aes(y=frecuencia * 500000 , group=), group = 1,color="red") + 
+  geom_line(aes(y=frecuencia * 500000 ), group = 1,color="red") + 
   geom_text(aes(y = frecuencia * 500000, label = paste(round(frecuencia*100),'%')),
             vjust = 1.4, color = "red", size = 2) +
   scale_y_continuous(sec.axis = sec_axis(~.* 500000, name = "Frecuencia [%]")) 
@@ -75,7 +75,7 @@ resumen %>%
   geom_point(aes(size=pct_exposicion)) + 
   geom_line() +
   scale_size_continuous(range=c(4, 10)) +
-  scale_y_continuous(labels = scales::percent)
+  scale_y_continuous(labels = scales::percent, limits = c(0,0.2))
 ```
 Dónde representamos la variable frecuencia en el eje de ordenadas y con el tamaño de los puntos representamos la otra variable. 
 

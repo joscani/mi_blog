@@ -28,7 +28,7 @@ resumen &lt;- df %&gt;% group_by(period) %&gt;%
 
 g2 &lt;- ggplot(resumen,aes(x = period)) + 
   geom_col(aes(y = pct_exposicion), fill=&quot;yellow&quot;,alpha=0.7) + 
-  geom_line(aes(y=frecuencia * 500000 , group=), group = 1,color=&quot;red&quot;) + 
+  geom_line(aes(y=frecuencia * 500000 ), group = 1,color=&quot;red&quot;) + 
   geom_text(aes(y = frecuencia * 500000, label = paste(round(frecuencia*100),&#39;%&#39;)),
             vjust = 1.4, color = &quot;red&quot;, size = 2) +
   scale_y_continuous(sec.axis = sec_axis(~.* 500000, name = &quot;Frecuencia [%]&quot;)) 
@@ -67,6 +67,6 @@ Me gusta aún menos este gráfico, yo propongo el siguiente en su lugar.</p>
   geom_point(aes(size=pct_exposicion)) + 
   geom_line() +
   scale_size_continuous(range=c(4, 10)) +
-  scale_y_continuous(labels = scales::percent)</code></pre>
+  scale_y_continuous(labels = scales::percent, limits = c(0,0.2))</code></pre>
 <p><img src="/post/2021-08-18-eje-y-secundario-1-n_files/figure-html/unnamed-chunk-5-1.png" width="672" />
 Dónde representamos la variable frecuencia en el eje de ordenadas y con el tamaño de los puntos representamos la otra variable.</p>
