@@ -15,6 +15,7 @@ topics: [languages]
 <script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
 
 
+<p>Nota: He cambiado la parte final para que hiciera lo mismo que el código de python, gracias a mi tocayo José Luis Hidalgo</p>
 <p>El otro día por linkedin, mi jefe compartió el siguiente <a href="https://www.kausa.ai/blog/how-causal-inference-lifts-augmented-analytics-beyond-flatland#5b4e41206487">artículo</a> recomendable por otro lado. El repo con el código y datos está <a href="https://github.com/kausa-ai/blog/tree/master/how_causal_inference_lifts_augmented_analytics_beyond_flatland">aquí</a>.</p>
 <p>En el artículo hacen referencia a que una forma de ver el CATE (Conditional Average Treatmen Effect) cuando hay variables categóricas puede ser construirse los términos de interacción de alto orden entre las variables categóricas y calcular la diferencia entre la media de la variable de interés antes del tratamiento y después del tratamiento, en cada una de las variables de interacción consideradas.</p>
 <p>Para eso el autor del artículo hace lo siguiente</p>
@@ -45,7 +46,7 @@ df.head()</code></pre>
 ##       dtype=&#39;object&#39;)</code></pre>
 <p>Y crea una función para crear las interacciones de orden n. </p>
 <pre class="python"><code>def binarize(df,cols,kpi_axis,time_axis,order):
-    cols = cols.drop([kpi_axis,time_axis])
+    cols = cols.drop([kpi_axis,time_axis]) 
     features = []
     for k in range(0,order):
         features.append(cols)
@@ -76,29 +77,29 @@ df.head()</code></pre>
 df = binarize(df,df.columns,kpi_axis,time_axis,3)
 elapsed_time = time.time() - start_time</code></pre>
 <pre class="python"><code>print(elapsed_time/60)</code></pre>
-<pre><code>## 0.927392836411794</code></pre>
+<pre><code>## 0.9183387319246928</code></pre>
 <pre class="python"><code>df.head(20)</code></pre>
-<pre><code>##          time  ...  customer_country == uk AND gender == n.a.
-## 0  2019-09-08  ...                                      False
-## 1  2019-09-08  ...                                      False
-## 2  2019-09-08  ...                                      False
-## 3  2019-09-08  ...                                      False
-## 4  2019-09-08  ...                                      False
-## 5  2019-09-08  ...                                      False
-## 6  2019-09-08  ...                                      False
-## 7  2019-09-08  ...                                      False
-## 8  2019-09-08  ...                                      False
-## 9  2019-09-08  ...                                      False
-## 10 2019-09-08  ...                                      False
-## 11 2019-09-08  ...                                      False
-## 12 2019-09-08  ...                                      False
-## 13 2019-09-08  ...                                      False
-## 14 2019-09-08  ...                                      False
-## 15 2019-09-08  ...                                      False
-## 16 2019-09-08  ...                                      False
-## 17 2019-09-08  ...                                      False
-## 18 2019-09-08  ...                                      False
-## 19 2019-09-08  ...                                      False
+<pre><code>##          time  ...  customer_age == 21-24 AND gender == male AND household_income == high
+## 0  2019-09-08  ...                                              False                    
+## 1  2019-09-08  ...                                              False                    
+## 2  2019-09-08  ...                                              False                    
+## 3  2019-09-08  ...                                              False                    
+## 4  2019-09-08  ...                                              False                    
+## 5  2019-09-08  ...                                              False                    
+## 6  2019-09-08  ...                                              False                    
+## 7  2019-09-08  ...                                              False                    
+## 8  2019-09-08  ...                                              False                    
+## 9  2019-09-08  ...                                              False                    
+## 10 2019-09-08  ...                                              False                    
+## 11 2019-09-08  ...                                              False                    
+## 12 2019-09-08  ...                                              False                    
+## 13 2019-09-08  ...                                              False                    
+## 14 2019-09-08  ...                                              False                    
+## 15 2019-09-08  ...                                              False                    
+## 16 2019-09-08  ...                                              False                    
+## 17 2019-09-08  ...                                              False                    
+## 18 2019-09-08  ...                                              False                    
+## 19 2019-09-08  ...                                              False                    
 ## 
 ## [20 rows x 2719 columns]</code></pre>
 <p>Y aquí es dónde vienen los viejos [R]ockeros. Cada vez que oigo hablar de interacciones pienso en R y en nuestras queridas fórmulas.
@@ -178,16 +179,21 @@ glimpse(df)</code></pre>
 <pre class="r"><code>tictoc::tic()
 df_final &lt;- binarize(df, features, 3)
 tictoc::toc()</code></pre>
-<pre><code>## 2.236 sec elapsed</code></pre>
-<pre class="r"><code>head(df_final, 5)</code></pre>
-<pre><code>## # A tibble: 5 × 2,719
-##   corte_fecha order_value `systemandroid-mob` `systemandroid-tv` `systemios-mob`
-##   &lt;fct&gt;             &lt;dbl&gt;               &lt;dbl&gt;              &lt;dbl&gt;           &lt;dbl&gt;
-## 1 antes              52.0                   0                  0               0
-## 2 antes              30.2                   1                  0               0
-## 3 antes              55.2                   1                  0               0
-## 4 antes              50                     0                  0               1
-## 5 antes              71.8                   0                  1               0
+<pre><code>## 2.161 sec elapsed</code></pre>
+<pre class="r"><code>head(df_final, 10)</code></pre>
+<pre><code>## # A tibble: 10 × 2,719
+##    corte_fecha order_value `systemandroid-mob` `systemandroid-t… `systemios-mob`
+##    &lt;fct&gt;             &lt;dbl&gt;               &lt;dbl&gt;             &lt;dbl&gt;           &lt;dbl&gt;
+##  1 antes              52.0                   0                 0               0
+##  2 antes              30.2                   1                 0               0
+##  3 antes              55.2                   1                 0               0
+##  4 antes              50                     0                 0               1
+##  5 antes              71.8                   0                 1               0
+##  6 antes              60.3                   0                 0               0
+##  7 antes              51.9                   0                 0               1
+##  8 antes             145.                    1                 0               0
+##  9 antes              47.8                   0                 1               0
+## 10 antes              36.3                   0                 0               0
 ## # … with 2,714 more variables: systemios-pc &lt;dbl&gt;, systemwin-pc &lt;dbl&gt;,
 ## #   product_categorybooks &lt;dbl&gt;, product_categoryelectronics &lt;dbl&gt;,
 ## #   product_categoryhousehold &lt;dbl&gt;, product_categorysports and outdoors &lt;dbl&gt;,
@@ -202,13 +208,12 @@ tictoc::toc()</code></pre>
 <p>En el artículo lo hacen así</p>
 <pre class="python"><code>
 start_time = time.time()
-elapsed_time = time.time() - start_time
 
 df_before = df[df[time_axis] &lt;= &#39;2019-09-11&#39;]
 df_after  = df[df[time_axis] &gt; &#39;2019-09-11&#39;]
 features = copy(df.drop([time_axis,kpi_axis], axis=1).columns)
 
-K = 10 #number of subgroups to detect
+K = 10 
 subgroups=[]
 score=[]
 for k in range(0,K):
@@ -240,7 +245,7 @@ df_nuevo = pd.DataFrame(np.array([score,subgroups]).T, columns=[&#39;CATE&#39;,&
 elapsed_time = time.time() - start_time
 
 print(elapsed_time)</code></pre>
-<pre><code>## 36.46207571029663</code></pre>
+<pre><code>## 36.140687227249146</code></pre>
 <pre class="python"><code>df_nuevo</code></pre>
 <pre><code>##                  CATE                                           features
 ## 0   289.4008630608073  customer_age == 46+ AND first_order_made == ye...
@@ -255,13 +260,13 @@ print(elapsed_time)</code></pre>
 ## 9  7.2043861024033475  customer_age == 21-24 AND customer_country == ...</code></pre>
 <p>Y tarda su ratillo, pero no está mal</p>
 <p>En R lo podemos hacer utilizando nuestro viejo amigo el R base para poner las condiciones</p>
-<pre class="r"><code>CalcularCate &lt;-  function(i){
+<pre class="r"><code>CalcularCate &lt;-  function(f, df){
   
-  filtro_antes   = df_final[[variables_summarizar[i]]] == 1 &amp; df_final$corte_fecha == &quot;antes&quot;
-  filtro_despues = df_final[[variables_summarizar[i]]] == 1 &amp; df_final$corte_fecha != &quot;antes&quot;
+  filtro_antes   = df[[f]] == 1 &amp; df$corte_fecha == &quot;antes&quot;
+  filtro_despues = df[[f]] == 1 &amp; df$corte_fecha != &quot;antes&quot;
   
-  media_antes   = mean(df_final$order_value[filtro_antes])
-  media_despues = mean(df_final$order_value[filtro_despues])
+  media_antes   = mean(df$order_value[filtro_antes])
+  media_despues = mean(df$order_value[filtro_despues])
   
   cate = media_despues - media_antes
   
@@ -269,34 +274,46 @@ print(elapsed_time)</code></pre>
   
   
 }</code></pre>
-<pre class="r"><code>variables_summarizar &lt;- colnames(df_final)[3:ncol(df_final)]
+<pre class="r"><code>tictoc::tic()
+K = 10
+cate = c()
+tmp &lt;-  df_final
 
-tictoc::tic()
-k = 10
-res = map_dbl(1:length(variables_summarizar), CalcularCate)
-names(res) &lt;-  variables_summarizar
-sort(res, decreasing = TRUE)[1:k]</code></pre>
-<pre><code>##                 systemandroid-tv:first_order_madeyes:customer_age46+ 
-##                                                            289.40086 
-##               systemandroid-tv:customer_age46+:customer_countryitaly 
-##                                                            110.45001 
-##                        systemandroid-tv:genderfemale:customer_age46+ 
-##                                                            107.28148 
-## systemandroid-tv:product_categorysports and outdoors:customer_age46+ 
-##                                                            103.36447 
-##                 systemandroid-tv:household_incomelow:customer_age46+ 
-##                                                            103.22081 
-##              systemandroid-tv:customer_age46+:customer_countrypoland 
-##                                                            102.87022 
-##              systemandroid-tv:customer_age46+:customer_countryfrance 
-##                                                            102.72170 
-##                          systemandroid-tv:gendern.a.:customer_age46+ 
-##                                                            102.60745 
-##           systemandroid-tv:product_categoryhousehold:customer_age46+ 
-##                                                            100.17129 
-##             systemandroid-tv:customer_age46+:customer_countrygermany 
-##                                                             97.90373</code></pre>
-<pre class="r"><code>tictoc::toc()</code></pre>
-<pre><code>## 5.719 sec elapsed</code></pre>
-<p>Y bueno, parece que en este caso, los viejos [R]ockeros no lo hacen mal del todo, de hecho bastante más rápido.</p>
+for ( k in 1:K) {
+  
+  features &lt;- colnames(tmp)[3:ncol(tmp)]
+  res &lt;-  unlist(lapply(features, function(x) CalcularCate(x, df = tmp)))
+  names(res) &lt;- features
+  ordenado &lt;-  sort(abs(res), decreasing = TRUE)[1]
+  f &lt;-  names(ordenado)
+  cate &lt;- c(cate, ordenado)
+  tmp &lt;-  tmp[tmp[[f]]== 0, c(&quot;corte_fecha&quot;, &quot;order_value&quot;, setdiff(features, f))]
+}
+
+ 
+ 
+tictoc::toc()</code></pre>
+<pre><code>## 66.222 sec elapsed</code></pre>
+<pre class="r"><code>cate</code></pre>
+<pre><code>##               systemandroid-tv:first_order_madeyes:customer_age46+ 
+##                                                         289.400863 
+##                 systemios-mob:customer_age30-35:customer_countryuk 
+##                                                           8.979525 
+##      household_incomelow:customer_age36-45:customer_countrygermany 
+##                                                           8.690152 
+##             systemwin-pc:customer_age36-45:customer_countrygermany 
+##                                                           8.567119 
+##      household_incomehigh:customer_age30-35:customer_countrycanada 
+##                                                           7.811875 
+##    product_categorybooks:customer_age36-45:customer_countrygermany 
+##                                                           7.510393 
+##         systemandroid-tv:customer_age36-45:customer_countrygermany 
+##                                                           8.405149 
+##             genderfemale:customer_age36-45:customer_countrygermany 
+##                                                           7.597928 
+## product_categoryelectronics:customer_age46+:customer_countrycanada 
+##                                                           7.417034 
+##                  systemios-pc:customer_age21-24:customer_countryuk 
+##                                                           7.204386</code></pre>
+<p>Y bueno, parece que en este caso, los viejos [R]ockeros no lo hacen mal del todo, sobre todo la parte de model.matrix es muy rápida</p>
 </div>

@@ -17,6 +17,9 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ```
 
+
+Nota: He cambiado la parte final para que hiciera lo mismo que el código de python, gracias a mi tocayo José Luis Hidalgo 
+
 El otro día por linkedin, mi jefe compartió el siguiente [artículo](https://www.kausa.ai/blog/how-causal-inference-lifts-augmented-analytics-beyond-flatland#5b4e41206487) recomendable por otro lado. El repo con el código y datos está [aquí](https://github.com/kausa-ai/blog/tree/master/how_causal_inference_lifts_augmented_analytics_beyond_flatland). 
 
 En el artículo hacen referencia a que una forma de ver el CATE (Conditional Average Treatmen Effect) cuando hay variables categóricas puede ser construirse los términos de interacción de alto orden entre las variables categóricas y calcular la diferencia entre la media de la variable de interés antes del tratamiento y después del tratamiento, en cada una de las variables de interacción consideradas. 
@@ -46,6 +49,7 @@ df.head()
 ```
 
 
+
 ```{python}
 df.columns
 ```
@@ -59,7 +63,7 @@ Y crea una función para crear las interacciones de orden n.
 
 ```{python}
 def binarize(df,cols,kpi_axis,time_axis,order):
-    cols = cols.drop([kpi_axis,time_axis])
+    cols = cols.drop([kpi_axis,time_axis]) 
     features = []
     for k in range(0,order):
         features.append(cols)
@@ -187,7 +191,7 @@ df_final <- binarize(df, features, 3)
 tictoc::toc()
 ```
 ```{r}
-head(df_final, 5)
+head(df_final, 10)
 ```
 
 Y ya estaría . 
@@ -201,13 +205,12 @@ En el artículo lo hacen así
 ```{python}
 
 start_time = time.time()
-elapsed_time = time.time() - start_time
 
 df_before = df[df[time_axis] <= '2019-09-11']
 df_after  = df[df[time_axis] > '2019-09-11']
 features = copy(df.drop([time_axis,kpi_axis], axis=1).columns)
 
-K = 10 #number of subgroups to detect
+K = 10 
 subgroups=[]
 score=[]
 for k in range(0,K):
@@ -251,13 +254,13 @@ En R lo podemos hacer utilizando nuestro viejo amigo el R base para poner las co
 
 ```{r}
 
-CalcularCate <-  function(i){
+CalcularCate <-  function(f, df){
   
-  filtro_antes   = df_final[[variables_summarizar[i]]] == 1 & df_final$corte_fecha == "antes"
-  filtro_despues = df_final[[variables_summarizar[i]]] == 1 & df_final$corte_fecha != "antes"
+  filtro_antes   = df[[f]] == 1 & df$corte_fecha == "antes"
+  filtro_despues = df[[f]] == 1 & df$corte_fecha != "antes"
   
-  media_antes   = mean(df_final$order_value[filtro_antes])
-  media_despues = mean(df_final$order_value[filtro_despues])
+  media_antes   = mean(df$order_value[filtro_antes])
+  media_despues = mean(df$order_value[filtro_despues])
   
   cate = media_despues - media_antes
   
@@ -270,18 +273,32 @@ CalcularCate <-  function(i){
 
 
 ```{r}
-
-variables_summarizar <- colnames(df_final)[3:ncol(df_final)]
-
 tictoc::tic()
-k = 10
-res = map_dbl(1:length(variables_summarizar), CalcularCate)
-names(res) <-  variables_summarizar
-sort(res, decreasing = TRUE)[1:k]
+K = 10
+cate = c()
+tmp <-  df_final
+
+for ( k in 1:K) {
+  
+  features <- colnames(tmp)[3:ncol(tmp)]
+  res <-  unlist(lapply(features, function(x) CalcularCate(x, df = tmp)))
+  names(res) <- features
+  ordenado <-  sort(abs(res), decreasing = TRUE)[1]
+  f <-  names(ordenado)
+  cate <- c(cate, ordenado)
+  tmp <-  tmp[tmp[[f]]== 0, c("corte_fecha", "order_value", setdiff(features, f))]
+}
+
+ 
+ 
 tictoc::toc()
+
+cate
 
 ```
 
-Y bueno, parece que en este caso, los viejos [R]ockeros no lo hacen mal del todo, de hecho bastante más rápido. 
+
+
+Y bueno, parece que en este caso, los viejos [R]ockeros no lo hacen mal del todo, sobre todo la parte de model.matrix es muy rápida
 
 
