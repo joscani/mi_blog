@@ -1,6 +1,7 @@
-baseurl = "https://muestrear-no-es-pecado.netlify.com/"
+baseurl = "https://muestrear-no-es-pecado.netlify.app/"
 languageCode = "es"
 title = "Muestrear no es pecado"
+#theme = "hugo-future-imperfect-slim"
 theme = "blackburn"
 author = "José Luis Cañadas Reche"
 #copyright = "&copy; 2016. All rights reserved."
