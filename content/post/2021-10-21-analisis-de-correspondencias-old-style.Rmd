@@ -71,7 +71,7 @@ Que tiene los mismos porcentajes por filas.
 
 Se podría considerar utilizar la distancia euclídea para ver como de parecidas son las filas ojos claros y ojos azules, pero eso presenta un problema, que es la distribución del color del pelo en la tabla, que es mayor que la de pelirrojos por ejemplo, así que usar esa distancia no sería justo. Podríamos definir una distancia ponderada que fuera $d(i, i') = \sum_j ((f_{ij} - f_{i'j})^2/f_{.j})$ dónde $f_{.j}$ es la distribución de las columnas en la población, vamos, qué % de rubios, pelirrojos, etc hay en mis datos. 
 
-En forma matricial, en notación de Daniel sería ![](/post/2021-10-21-análisis-de-correspondencias-old-style_files/eq1.png). 
+En forma matricial, en notación de Daniel sería ![](/post/2021-10-21-analisis-de-correspondencias-old-style_files/eq2.png) 
 
 Esta distancia es equivalente a la euclídea en la matriz Y definida como dividir cada elemento de los perfiles fila por la raíz cuadrada del peso de la columna. 
 

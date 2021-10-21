@@ -73,7 +73,7 @@ df_tabla</code></pre>
 ## castaños 0.19334837 0.04735062 0.5124014 0.2322435 0.014656144
 ## oscuros  0.07827476 0.03833866 0.3218850 0.4936102 0.067891374</code></pre>
 <p>Se podría considerar utilizar la distancia euclídea para ver como de parecidas son las filas ojos claros y ojos azules, pero eso presenta un problema, que es la distribución del color del pelo en la tabla, que es mayor que la de pelirrojos por ejemplo, así que usar esa distancia no sería justo. Podríamos definir una distancia ponderada que fuera <span class="math inline">\(d(i, i&#39;) = \sum_j ((f_{ij} - f_{i&#39;j})^2/f_{.j})\)</span> dónde <span class="math inline">\(f_{.j}\)</span> es la distribución de las columnas en la población, vamos, qué % de rubios, pelirrojos, etc hay en mis datos.</p>
-<p>En forma matricial, en notación de Daniel sería <img src="/post/2021-10-21-análisis-de-correspondencias-old-style_files/eq1.png" />.</p>
+<p>En forma matricial, en notación de Daniel sería <img src="/post/2021-10-21-analisis-de-correspondencias-old-style_files/eq2.png" /></p>
 <p>Esta distancia es equivalente a la euclídea en la matriz Y definida como dividir cada elemento de los perfiles fila por la raíz cuadrada del peso de la columna.</p>
 <pre class="r"><code># peso de loas columnas
 (f.j &lt;- colSums(tabla_frecuencias))</code></pre>
