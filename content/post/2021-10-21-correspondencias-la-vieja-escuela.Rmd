@@ -20,13 +20,15 @@ topics: []
 Quién me conoce sabe que siento debilidad por el análisis de datos categóricos, en particular por técnicas como el análisis de correspondencias simple o múltiple o por las cosas más modernas que hay. 
 No en vano se me dió especialmente bien en la universidad, en parte debido a que por fin me centré después de unos años locos,  y en parte debido a algún buen profesor. El caso es que en el curro utilizamos este tipo de técnicas para encontrar relaciones entre variables categóricas que quizá hayan pasado desapercibidas en un primer análisis. 
 
-Antes de nada voy a dar un par de referencias en castellano, bastante útiles. 
+Antes de nada voy a dar un par de referencias en castellano,  bastante útiles. 
 
 * [La práctica del análisis de correspondencias. Michael Greenacre](https://www.fbbva.es/wp-content/uploads/2017/05/dat/DE_2008_practica_analisis_correspondencias.pdf)
 * [Análisis de datos multivariantes. Daniel Peña](https://www.researchgate.net/publication/40944325_Analisis_de_Datos_Multivariantes)
 
 
-De hecho el ejemplo que voy a contar y la notación que voy a usar viene en el libro de Daniel. Es un ejemplo de Fisher (si, ese al que todo el mundo odia hoy en día) de 1940, sobre la relación entre el color de los ojos (en filas) y el color del pelo (en columnas). Se trata de una simple tabla de contingencia. 
+De hecho el ejemplo que voy a contar y la notación que voy a usar viene en el libro de Daniel. 
+
+Es un ejemplo de Fisher (si, ese al que todo el mundo odia hoy en día) de 1940, sobre la relación entre el color de los ojos (en filas) y el color del pelo (en columnas). Se trata de una simple tabla de contingencia. 
 
 
 ```{r}

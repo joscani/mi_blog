@@ -26,7 +26,8 @@ No en vano se me dió especialmente bien en la universidad, en parte debido a qu
 <li><a href="https://www.fbbva.es/wp-content/uploads/2017/05/dat/DE_2008_practica_analisis_correspondencias.pdf">La práctica del análisis de correspondencias. Michael Greenacre</a></li>
 <li><a href="https://www.researchgate.net/publication/40944325_Analisis_de_Datos_Multivariantes">Análisis de datos multivariantes. Daniel Peña</a></li>
 </ul>
-<p>De hecho el ejemplo que voy a contar y la notación que voy a usar viene en el libro de Daniel. Es un ejemplo de Fisher (si, ese al que todo el mundo odia hoy en día) de 1940, sobre la relación entre el color de los ojos (en filas) y el color del pelo (en columnas). Se trata de una simple tabla de contingencia.</p>
+<p>De hecho el ejemplo que voy a contar y la notación que voy a usar viene en el libro de Daniel.</p>
+<p>Es un ejemplo de Fisher (si, ese al que todo el mundo odia hoy en día) de 1940, sobre la relación entre el color de los ojos (en filas) y el color del pelo (en columnas). Se trata de una simple tabla de contingencia.</p>
 <pre class="r"><code>df &lt;- read.csv(&quot;../../data/hair_eyes_color.csv&quot;)
 
 rownames(df) &lt;- df$color_ojos
