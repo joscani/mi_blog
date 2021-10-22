@@ -1,55 +1,67 @@
 baseurl = "https://muestrear-no-es-pecado.netlify.app/"
 languageCode = "es"
 title = "Muestrear no es pecado"
+#theme = "hugo-future-imperfect-slim"
+#theme = "blackburn"
 theme = "hugo-lithium"
-googleAnalytics = ""
-disqusShortname = ""
-ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\\.md$"]
+author = "José Luis Cañadas Reche"
+#copyright = "&copy; 2016. All rights reserved."
+ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
+canonifyurls = true
+paginate = 10
+relativeURLs = true
+
 
 [permalinks]
-    post = "/:year/:month/:day/:slug/"
+post = "/:year/:month/:day/:slug/"
 
-[[menu.main]]
+[indexes]
+  tag = "tags"
+  topic = "topics"
+
+[params]
+  # Shown in the home page
+  subtitle = "Estadística, ciencia de datos, big data, cosas varias"
+  brand = ""
+  googleAnalytics = "Your Google Analytics tracking ID"
+  disqus = "joscani-1"
+  # CSS name for highlight.js
+  highlightjs = "androidstudio"
+  dateFormat = "02 Jan 2006"
+    [params.logo]
+    url = "joscani.png"
+    width = 50
+    height = 50
+    alt = "Logo"
+[menu]
+  # Shown in the side menu.
+  [[menu.main]]
     name = "Home"
     pre = "<i class='fa fa-home fa-fw'></i>"
     weight = 1
     identifier = "home"
     url = "/"
-[[menu.main]]
+  [[menu.main]]
     name = "Posts"
     pre = "<i class='fa fa-list fa-fw'></i>"
     weight = 2
     identifier = "post"
     url = "/post/"
-[[menu.main]]
+  [[menu.main]]
     name = "About"
     pre = "<i class='fa fa-user fa-fw'></i>"
     weight = 3
     identifier = "about"
     url = "/about/"
 
-[params]
-    description = "Estadística, ciencia de datos, big data, cosas varias"
+[social]
+  # Link your social networking accouns to the side menu
+  # by entering your username or ID.
+  twitter = "joscani"
+  #facebook = "*"
+  #instagram = "*"
+  github = "joscani"
+  #stackoverflow = "*"
+  linkedin = "joscani"
+  
 
-    # options for highlight.js (version, additional languages, and theme)
-    highlightjsVersion = "9.12.0"
-    highlightjsCDN = "//cdnjs.cloudflare.com/ajax/libs"
-    highlightjsLang = ["r", "yaml"]
-    highlightjsTheme = "github"
-
-    MathJaxCDN = "//cdnjs.cloudflare.com/ajax/libs"
-    MathJaxVersion = "2.7.5"
-
-    # path to the favicon, under "static"
-    favicon = "favicon.ico"
-
-    [params.logo]
-    url = "joscani.png"
-    width = 50
-    height = 50
-    alt = "Logo"
-
-[markup]
-  defaultMarkdownHandler = "goldmark"
-  [markup.goldmark.renderer]
-    unsafe = true  # Enable user to embed HTML snippets in Markdown content.
