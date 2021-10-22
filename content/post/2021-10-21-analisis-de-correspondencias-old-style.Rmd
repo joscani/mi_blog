@@ -13,7 +13,7 @@ tags:
   - factorización
   - factorial
 description: ''
-draft: yes
+draft: no
 topics: []
 ---
 
@@ -69,7 +69,7 @@ Que tiene los mismos porcentajes por filas.
 (perfiles_fila <- prop.table(tabla_frecuencias, 1))
 ```
 
-Se podría considerar utilizar la distancia euclídea para ver como de parecidas son las filas ojos claros y ojos azules, pero eso presenta un problema, que es la distribución del color del pelo en la tabla, que es mayor que la de pelirrojos por ejemplo, así que usar esa distancia no sería justo. Podríamos definir una distancia ponderada que fuera $d(i, i') = \sum_j ((f_{ij} - f_{i'j})^2/f_{.j})$ dónde $f_{.j}$ es la distribución de las columnas en la población, vamos, qué % de rubios, pelirrojos, etc hay en mis datos. 
+Se podría considerar utilizar la distancia euclídea para ver como de parecidas son las filas ojos claros y ojos azules, pero eso presenta un problema, que es la distribución del color del pelo en la tabla, dónde por ejemplo el porcentaje de rubios es mayor que el de pelirrojos. Así que usar esa distancia no sería justo. Podríamos definir una distancia ponderada que fuera $d(i, i') = \sum_j ((f_{ij} - f_{i'j})^2/f_{.j})$ dónde $f_{.j}$ es la distribución de las columnas en la población, vamos, qué % de rubios, pelirrojos, etc hay en mis datos. 
 
 En forma matricial, en notación de Daniel sería ![](/post/2021-10-21-analisis-de-correspondencias-old-style_files/eq2.png) 
 
@@ -129,7 +129,8 @@ Z
 
 ```
 
-Sobre esta matriz Z que no es más que la tabla de frecuencias relativas estandarizada por el peso de las filas y el de las columnas podemos diagonalizar la matriz __Z'Z__ Esta matriz tiene un valor propio igual a 1, pero los importantes son los siguientes. 
+Sobre esta matriz Z que no es más que la tabla de frecuencias relativas estandarizada por el peso de las filas y el de las columnas podemos diagonalizar la matriz __Z'Z__.
+Esta matriz tiene un valor propio igual a 1, pero los importantes son los siguientes. 
 
 ```{r}
 res_diag <- eigen(t(Z) %*% Z)
@@ -146,8 +147,8 @@ Teniendo la matriz Y, que son los perfiles (porcentajes) fila ponderados  por el
 vector_propio1 <- res_diag$vectors[,2]
 vector_propio2 <- res_diag$vectors[,3]
 
-(coord1 <-Y %*% vector_propio1 )
-(coord2 <-Y %*% vector_propio2 )
+(coord1 <- Y %*% vector_propio1 )
+(coord2 <- Y %*% vector_propio2 )
 
 
 ```
@@ -170,11 +171,15 @@ to_plot %>%
 
 ## Proyección de las columnas
 
-La proyección de las columnas en un subespacio de las filas se hace de manera análoga , solo que en vez de diagonalizar __Z'Z__ se hace con __Z Z'__, que tiene los mismos valores propios que los obtenidos. De aquí viene la relación baricéntrica entre las filas y las columnas. 
+La proyección de las columnas en un subespacio de las filas se hace de manera análoga , solo que en vez de diagonalizar __Z'Z__ se hace con __Z Z'__, que tiene los mismos valores propios que los obtenidos. 
+
+De aquí viene la relación baricéntrica entre las filas y las columnas. 
 
 ## Relación con la distancia Chi-cuadrado
 
-Si se desarrolla la expresión de la distancia Chi-cuadrado , tal como se hace en el libro de Daniel Peña se llega a que se corresponde con la distancia euclídea en la matriz __Y__ que son los perfiles filas  ponderados por el peso de cada columna. Esta implicación es importante, puesto que al descomponer el estadístico Chi-cuadrado que nos mide la asociación entre variables categóricas (filas y columnas), estamos descubriendo qué filas están asociados con determinadas columnas. 
+Si se desarrolla la expresión de la distancia Chi-cuadrado , tal como se hace en el libro de Daniel Peña se llega a que se corresponde con la distancia euclídea en la matriz __Y__ que son los perfiles filas  ponderados por el peso de cada columna. 
+
+Esta implicación es importante, puesto que al descomponer el estadístico Chi-cuadrado que nos mide la asociación entre variables categóricas (filas y columnas), estamos descubriendo qué filas están asociados con determinadas columnas. 
 
 ## Uso con FactoMineR 
 

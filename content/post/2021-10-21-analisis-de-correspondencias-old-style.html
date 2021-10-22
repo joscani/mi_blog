@@ -12,6 +12,9 @@ tags:
   - estadística
   - factorización
   - factorial
+description: ''
+draft: no
+topics: []
 ---
 
 <script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
@@ -69,7 +72,7 @@ df_tabla</code></pre>
 ## azules   0.45403900 0.05292479 0.3356546 0.1532033 0.004178273
 ## castaños 0.19334837 0.04735062 0.5124014 0.2322435 0.014656144
 ## oscuros  0.07827476 0.03833866 0.3218850 0.4936102 0.067891374</code></pre>
-<p>Se podría considerar utilizar la distancia euclídea para ver como de parecidas son las filas ojos claros y ojos azules, pero eso presenta un problema, que es la distribución del color del pelo en la tabla, que es mayor que la de pelirrojos por ejemplo, así que usar esa distancia no sería justo. Podríamos definir una distancia ponderada que fuera <span class="math inline">\(d(i, i&#39;) = \sum_j ((f_{ij} - f_{i&#39;j})^2/f_{.j})\)</span> dónde <span class="math inline">\(f_{.j}\)</span> es la distribución de las columnas en la población, vamos, qué % de rubios, pelirrojos, etc hay en mis datos.</p>
+<p>Se podría considerar utilizar la distancia euclídea para ver como de parecidas son las filas ojos claros y ojos azules, pero eso presenta un problema, que es la distribución del color del pelo en la tabla, dónde por ejemplo el porcentaje de rubios es mayor que el de pelirrojos. Así que usar esa distancia no sería justo. Podríamos definir una distancia ponderada que fuera <span class="math inline">\(d(i, i&#39;) = \sum_j ((f_{ij} - f_{i&#39;j})^2/f_{.j})\)</span> dónde <span class="math inline">\(f_{.j}\)</span> es la distribución de las columnas en la población, vamos, qué % de rubios, pelirrojos, etc hay en mis datos.</p>
 <p>En forma matricial, en notación de Daniel sería <img src="/post/2021-10-21-analisis-de-correspondencias-old-style_files/eq2.png" /></p>
 <p>Esta distancia es equivalente a la euclídea en la matriz Y definida como dividir cada elemento de los perfiles fila por la raíz cuadrada del peso de la columna.</p>
 <pre class="r"><code># peso de loas columnas
@@ -130,7 +133,8 @@ Z</code></pre>
 ## azules   0.31895094 0.08385681 0.1945596 0.1126501 0.010306662
 ## castaños 0.21349407 0.11792869 0.4668580 0.2684240 0.056827106
 ## oscuros  0.07260933 0.08021509 0.2463773 0.4792778 0.221144304</code></pre>
-<p>Sobre esta matriz Z que no es más que la tabla de frecuencias relativas estandarizada por el peso de las filas y el de las columnas podemos diagonalizar la matriz <strong>Z’Z</strong> Esta matriz tiene un valor propio igual a 1, pero los importantes son los siguientes.</p>
+<p>Sobre esta matriz Z que no es más que la tabla de frecuencias relativas estandarizada por el peso de las filas y el de las columnas podemos diagonalizar la matriz <strong>Z’Z</strong>.
+Esta matriz tiene un valor propio igual a 1, pero los importantes son los siguientes.</p>
 <pre class="r"><code>res_diag &lt;- eigen(t(Z) %*% Z)
 res_diag$values</code></pre>
 <pre><code>## [1]  1.000000e+00  1.873957e-01  2.847581e-02  9.026139e-04 -5.424744e-18</code></pre>
@@ -146,13 +150,13 @@ res_diag$values</code></pre>
 vector_propio1 &lt;- res_diag$vectors[,2]
 vector_propio2 &lt;- res_diag$vectors[,3]
 
-(coord1 &lt;-Y %*% vector_propio1 )</code></pre>
+(coord1 &lt;- Y %*% vector_propio1 )</code></pre>
 <pre><code>##                 [,1]
 ## claros   -0.42893286
 ## azules   -0.39128686
 ## castaños  0.05523421
 ## oscuros   0.68743802</code></pre>
-<pre class="r"><code>(coord2 &lt;-Y %*% vector_propio2 )</code></pre>
+<pre class="r"><code>(coord2 &lt;- Y %*% vector_propio2 )</code></pre>
 <pre><code>##                 [,1]
 ## claros    0.08081194
 ## azules    0.15705214
@@ -182,11 +186,13 @@ vector_propio2 &lt;- res_diag$vectors[,3]
 </div>
 <div id="proyección-de-las-columnas" class="section level2">
 <h2>Proyección de las columnas</h2>
-<p>La proyección de las columnas en un subespacio de las filas se hace de manera análoga , solo que en vez de diagonalizar <strong>Z’Z</strong> se hace con <strong>Z Z’</strong>, que tiene los mismos valores propios que los obtenidos. De aquí viene la relación baricéntrica entre las filas y las columnas.</p>
+<p>La proyección de las columnas en un subespacio de las filas se hace de manera análoga , solo que en vez de diagonalizar <strong>Z’Z</strong> se hace con <strong>Z Z’</strong>, que tiene los mismos valores propios que los obtenidos.</p>
+<p>De aquí viene la relación baricéntrica entre las filas y las columnas.</p>
 </div>
 <div id="relación-con-la-distancia-chi-cuadrado" class="section level2">
 <h2>Relación con la distancia Chi-cuadrado</h2>
-<p>Si se desarrolla la expresión de la distancia Chi-cuadrado , tal como se hace en el libro de Daniel Peña se llega a que se corresponde con la distancia euclídea en la matriz <strong>Y</strong> que son los perfiles filas ponderados por el peso de cada columna. Esta implicación es importante, puesto que al descomponer el estadístico Chi-cuadrado que nos mide la asociación entre variables categóricas (filas y columnas), estamos descubriendo qué filas están asociados con determinadas columnas.</p>
+<p>Si se desarrolla la expresión de la distancia Chi-cuadrado , tal como se hace en el libro de Daniel Peña se llega a que se corresponde con la distancia euclídea en la matriz <strong>Y</strong> que son los perfiles filas ponderados por el peso de cada columna.</p>
+<p>Esta implicación es importante, puesto que al descomponer el estadístico Chi-cuadrado que nos mide la asociación entre variables categóricas (filas y columnas), estamos descubriendo qué filas están asociados con determinadas columnas.</p>
 </div>
 <div id="uso-con-factominer" class="section level2">
 <h2>Uso con FactoMineR</h2>
