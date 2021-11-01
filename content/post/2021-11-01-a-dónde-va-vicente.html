@@ -1,0 +1,290 @@
+---
+title: ¿A dónde va Vicente?
+author: jlcr
+date: '2021-11-01'
+slug: a-dónde-va-vicente
+categories:
+  - árboles
+  - ciencia de datos
+tags:
+  - estadística
+  - h2o
+keywords:
+  - tech
+---
+
+<script src="2021-11-01-a-dónde-va-vicente_files/header-attrs/header-attrs.js"></script>
+<script src="2021-11-01-a-dónde-va-vicente_files/htmlwidgets/htmlwidgets.js"></script>
+<script src="2021-11-01-a-dónde-va-vicente_files/viz/viz.js"></script>
+<link href="2021-11-01-a-dónde-va-vicente_files/DiagrammeR-styles/styles.css" rel="stylesheet" />
+<script src="2021-11-01-a-dónde-va-vicente_files/grViz-binding/grViz.js"></script>
+
+
+<p>Cuando estamos haciendo un modelo y tratamos con variables categóricas como predictoras, hay que ser muy cuidadoso. Por ejemplo hay que tener en cuenta qué pasa cuándo tenemos un nuevo nivel en el conjunto de datos a predecir que no estaba en el de entrenamiento. Por ejemplo, si estoy utilizando un algoritmo moderno tipo xgboost, y tengo como variable predictora la provincia. ¿Qué pasa si en el conjunto de entrenamiento no tengo datos de “Granada”, pero en el de predicción si?</p>
+<p>En el xgboost por defecto las categóricas se codifican con One-Hot encoder, por lo que al no tener datos de Granada en entrenamiento a la hora de predecir la fila de Granada siempre va a tirar hacia el 0, por ejemplo, un corte en uno de los árboles podría ser Almeria = 0 para la izquierda y Almeria = 1 para la derecha. Esto es lo que suelen hacer la mayoría de las implementaciones. Pero cabe preguntarse si es la mejor solución. Otra alternativa podría ser, dado que tengo que predecir para un nivel no visto en entrenamiento, podría asignarle el valor del target que había en el nodo superior. Esta decisión plantea el problema de como sigues el proceso de partición de datos del árbol. Otra posible decisión podría ser recorrer todos los caminos posibles y promediar. En el caso anterior sería ver qué predicción acaba teniendo cuando Almería = 0 y cuando Almería = 1 y promediar. Sería una solución más justa, aunque plantea el problema de tener que recorrer más ramas.</p>
+<p>Otra solución es en cada corte que implique a la variable categórica en cuestión, tirar hacia dónde van la mayoría de los caso “¿a dónde va Vicente? A dónde va la gente”. Esta es la solución que tiene la gente de <a href="https://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/gbm-faq/missing_values.html">h2o</a> en su implementación de los Random Forest o de los Gradient Boosting. Dicen textualmente.</p>
+<blockquote>
+<p><strong>What happens when you try to predict on a categorical level not seen during training?</strong>
+Unseen categorical levels are turned into NAs, and thus follow the same behavior as an NA. If there are no NAs in the training data, then unseen categorical levels in the test data follow the majority direction (the direction with the most observations). If there are NAs in the training data, then unseen categorical levels in the test data follow the direction that is optimal for the NAs of the training data.</p>
+</blockquote>
+<div id="ejemplo" class="section level2">
+<h2>Ejemplo</h2>
+<div id="iniciamos-h2o-y-cargamos-datos" class="section level3">
+<h3>Iniciamos h2o y cargamos datos</h3>
+<pre class="r"><code>## Not run: 
+library(h2o)
+h2o.init( max_mem_size = &quot;25G&quot;)</code></pre>
+<pre><code>##  Connection successful!
+## 
+## R is connected to the H2O cluster: 
+##     H2O cluster uptime:         34 minutes 9 seconds 
+##     H2O cluster timezone:       Europe/Madrid 
+##     H2O data parsing timezone:  UTC 
+##     H2O cluster version:        3.34.0.3 
+##     H2O cluster version age:    24 days  
+##     H2O cluster name:           H2O_started_from_R_jose_lhz426 
+##     H2O cluster total nodes:    1 
+##     H2O cluster total memory:   21.83 GB 
+##     H2O cluster total cores:    12 
+##     H2O cluster allowed cores:  12 
+##     H2O cluster healthy:        TRUE 
+##     H2O Connection ip:          localhost 
+##     H2O Connection port:        54321 
+##     H2O Connection proxy:       NA 
+##     H2O Internal Security:      FALSE 
+##     H2O API Extensions:         Amazon S3, XGBoost, Algos, AutoML, Core V3, TargetEncoder, Core V4 
+##     R Version:                  R version 4.1.1 (2021-08-10)</code></pre>
+<p>Importamos los datos del titanic. Ponemos como variables predictoras de la supervivencia, solo la clase y el sexo.</p>
+<pre class="r"><code>f &lt;- &quot;https://s3.amazonaws.com/h2o-public-test-data/smalldata/gbm_test/titanic.csv&quot;
+titanic &lt;- h2o.importFile(f)</code></pre>
+<pre><code>## 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======                                                                |   8%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+<pre class="r"><code>titanic[&#39;survived&#39;] &lt;- as.factor(titanic[&#39;survived&#39;])
+predictors &lt;- c(&quot;pclass&quot;,&quot;sex&quot;)
+response &lt;- &quot;survived&quot;
+
+# convertimos la clase a factor 
+titanic$pclass &lt;- as.factor(titanic$pclass)
+h2o.getTypes(titanic$pclass)</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;enum&quot;</code></pre>
+<p>Partimos en train y test</p>
+<pre class="r"><code>splits &lt;- h2o.splitFrame(data =  titanic, ratios = .8, seed = 1234)
+train &lt;- splits[[1]]
+valid &lt;- splits[[2]]
+
+h2o.table(train$pclass)</code></pre>
+<pre><code>##   pclass Count
+## 1      1   260
+## 2      2   223
+## 3      3   571
+## 
+## [3 rows x 2 columns]</code></pre>
+<pre class="r"><code>h2o.table(train$sex)</code></pre>
+<pre><code>##      sex Count
+## 1 female   387
+## 2   male   667
+## 
+## [2 rows x 2 columns]</code></pre>
+<pre class="r"><code>h2o.table(valid$pclass)</code></pre>
+<pre><code>##   pclass Count
+## 1      1    63
+## 2      2    54
+## 3      3   138
+## 
+## [3 rows x 2 columns]</code></pre>
+<p>Y ahora cambio en test para que aparezcan valores en pclass y en sex que no están en train.</p>
+<pre class="r"><code>valid$pclass = h2o.ifelse(valid$pclass == &quot;3&quot;, &quot;unknown&quot;, valid$pclass)
+valid$sex    = h2o.ifelse(valid$sex == &quot;male&quot;, &quot;unknown&quot;, valid$sex )
+
+
+h2o.table(valid$pclass)</code></pre>
+<pre><code>##    pclass Count
+## 1       1    63
+## 2       2    54
+## 3 unknown   138
+## 
+## [3 rows x 2 columns]</code></pre>
+<pre class="r"><code>h2o.table(valid$sex)</code></pre>
+<pre><code>##       sex Count
+## 1  female    79
+## 2 unknown   176
+## 
+## [2 rows x 2 columns]</code></pre>
+<p>Para ver bien qué sucede con los casos en que tenemos nivel nuevo en clase y sexo nos quedamos con el siguiente conjunto de datos a predecir</p>
+<pre class="r"><code>test &lt;-  valid[valid$pclass== &quot;unknown&quot; &amp; valid$sex == &quot;unknown&quot;,]
+test</code></pre>
+<pre><code>##    pclass survived                          name     sex age sibsp parch ticket
+## 1 unknown        0 Abbott  Master. Eugene Joseph unknown  13     0     2    NaN
+## 2 unknown        1 Abelseth  Mr. Olaus Jorgensen unknown  25     0     0 348122
+## 3 unknown        0                Ali  Mr. Ahmed unknown  24     0     0    NaN
+## 4 unknown        0   Andersen  Mr. Albert Karvin unknown  32     0     0    NaN
+## 5 unknown        0   Andersson  Mr. Anders Johan unknown  39     1     5 347082
+## 6 unknown        0    Andreasson  Mr. Paul Edvin unknown  20     0     0 347466
+##      fare cabin embarked boat body           home.dest
+## 1 20.2500  &lt;NA&gt;        S  NaN  NaN East Providence  RI
+## 2  7.6500 F G63        S  NaN  NaN  Perkins County  SD
+## 3  7.0500  &lt;NA&gt;        S  NaN  NaN                &lt;NA&gt;
+## 4 22.5250  &lt;NA&gt;        S  NaN  260      Bergen  Norway
+## 5 31.2750  &lt;NA&gt;        S  NaN  NaN Sweden Winnipeg  MN
+## 6  7.8542  &lt;NA&gt;        S  NaN  NaN  Sweden Chicago  IL
+## 
+## [99 rows x 14 columns]</code></pre>
+</div>
+<div id="modelo-xgboost" class="section level3">
+<h3>Modelo xgboost</h3>
+<p>Hacemos un sólo árbol</p>
+<pre class="r"><code>modeloxg&lt;-  h2o.xgboost(
+  seed = 155,
+  x = predictors, 
+  y = response,
+  max_depth = 3,
+  training_frame = train,
+  ntrees =1
+)</code></pre>
+<pre><code>## 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+<p>Y al predecir, nos da un warning que nos dice ¡¡ojo, tengo nuevos niveles que no estaban en train!! . Aún así , no casca y devuelve una predicción</p>
+<pre class="r"><code>h2o.predict(modeloxg, test)</code></pre>
+<pre><code>## 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+<pre><code>## Warning in doTryCatch(return(expr), name, parentenv, handler): Test/Validation
+## dataset column &#39;pclass&#39; has levels not trained on: [&quot;unknown&quot;]</code></pre>
+<pre><code>## Warning in doTryCatch(return(expr), name, parentenv, handler): Test/Validation
+## dataset column &#39;sex&#39; has levels not trained on: [&quot;unknown&quot;]</code></pre>
+<pre><code>##   predict        p0        p1
+## 1       0 0.6016703 0.3983298
+## 2       0 0.6016703 0.3983298
+## 3       0 0.6016703 0.3983298
+## 4       0 0.6016703 0.3983298
+## 5       0 0.6016703 0.3983298
+## 6       0 0.6016703 0.3983298
+## 
+## [99 rows x 3 columns]</code></pre>
+<pre class="r"><code>h2o.predict_leaf_node_assignment(modeloxg, test)</code></pre>
+<pre><code>##   T1.C1
+## 1    LL
+## 2    LL
+## 3    LL
+## 4    LL
+## 5    LL
+## 6    LL
+## 
+## [99 rows x 1 column]</code></pre>
+<p>Podemos extraer información del árbol con</p>
+<pre class="r"><code>arbol_ind_xg &lt;- h2o.getModelTree(model = modeloxg, tree_number = 1)
+
+NodesInfo &lt;-  function(arbol_ind){
+  for (i in 1:length(arbol_ind)) {
+    info &lt;-
+      sprintf(
+        &quot;Node ID %s has left child node with index %s and right child node with index %s The split feature is %s. The NA direction is %s&quot;,
+        arbol_ind@node_ids[i],
+        arbol_ind@left_children[i],
+        arbol_ind@right_children[i],
+        arbol_ind@features[i], 
+        arbol_ind@nas[i]
+      )
+    print(info)
+  }}
+
+NodesInfo(arbol_ind_xg)</code></pre>
+<pre><code>## [1] &quot;Node ID 0 has left child node with index 1 and right child node with index 2 The split feature is sex.female. The NA direction is LEFT&quot;
+## [1] &quot;Node ID 1 has left child node with index 3 and right child node with index 4 The split feature is pclass.1. The NA direction is LEFT&quot;
+## [1] &quot;Node ID 2 has left child node with index 5 and right child node with index 6 The split feature is pclass.3. The NA direction is LEFT&quot;
+## [1] &quot;Node ID 3 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;
+## [1] &quot;Node ID 4 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;
+## [1] &quot;Node ID 5 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;
+## [1] &quot;Node ID 6 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;</code></pre>
+<p>Y vemos que nos da información de hacia dónde van los NA (los niveles nuevos no vistos en train) y siempre van hacia la izquierda.</p>
+<p>Podemos pintar el árbol. <a href="https://github.com/joscani/mi_blog/blob/master/plot_h2o_tree.R">Script</a>
+Y vemos que los NA, siempre van hacia los 0’s.</p>
+<pre class="r"><code>## importo funciones , encontradas por internet, como no, para pintar el árbol
+source(&quot;../../plot_h2o_tree.R&quot;)</code></pre>
+<pre><code>## Loading required package: data.tree</code></pre>
+<pre class="r"><code>titanicDataTree_XG = createDataTree(arbol_ind_xg)
+
+plotDataTree(titanicDataTree_XG, rankdir = &quot;TB&quot;)</code></pre>
+<div id="htmlwidget-1" style="width:672px;height:480px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"diagram":"digraph {\n\ngraph [rankdir = \"TB\",\n       dpi = \"70\"]\n\n\n\n  \"1\" [label = \"sex.female\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"2\" [label = \"pclass.1\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"3\" [label = \"prediction: -0.4124294\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"4\" [label = \"prediction: -0.20000002\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"5\" [label = \"pclass.3\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"6\" [label = \"prediction: 0.49345794\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"7\" [label = \"prediction: -0.016574586\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n\"1\"->\"2\" [fontname = \"Palatino-italic\", label = \"< 1 ,NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"1\"->\"5\" [fontname = \"Palatino-italic\", label = \">= 1 \", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"2\"->\"3\" [fontname = \"Palatino-italic\", label = \"< 1 ,NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"2\"->\"4\" [fontname = \"Palatino-italic\", label = \">= 1 \", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"5\"->\"6\" [fontname = \"Palatino-italic\", label = \"< 1 ,NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"5\"->\"7\" [fontname = \"Palatino-italic\", label = \">= 1 \", fontsize = \"26\", fontcolor = \"royalblue4\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="modelo-h2o.gbm" class="section level3">
+<h3>Modelo h2o.gbm</h3>
+<p>Veamos qué hace la implementación de h2o.</p>
+<pre class="r"><code>gbm_h2o &lt;-  h2o.gbm(
+  seed = 155,
+  x = predictors, 
+  y = response,
+  max_depth = 3,
+  distribution = &quot;bernoulli&quot;,
+  training_frame = train,
+  ntrees = 1
+)</code></pre>
+<pre><code>## 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+<pre class="r"><code>h2o.predict(gbm_h2o, test)</code></pre>
+<pre><code>## 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |======================================================================| 100%</code></pre>
+<pre><code>## Warning in doTryCatch(return(expr), name, parentenv, handler): Test/Validation
+## dataset column &#39;pclass&#39; has levels not trained on: [&quot;unknown&quot;]</code></pre>
+<pre><code>## Warning in doTryCatch(return(expr), name, parentenv, handler): Test/Validation
+## dataset column &#39;sex&#39; has levels not trained on: [&quot;unknown&quot;]</code></pre>
+<pre><code>##   predict        p0        p1
+## 1       0 0.6375663 0.3624337
+## 2       0 0.6375663 0.3624337
+## 3       0 0.6375663 0.3624337
+## 4       0 0.6375663 0.3624337
+## 5       0 0.6375663 0.3624337
+## 6       0 0.6375663 0.3624337
+## 
+## [99 rows x 3 columns]</code></pre>
+<pre class="r"><code>h2o.predict_leaf_node_assignment(gbm_h2o, test)</code></pre>
+<pre><code>##   T1.C1
+## 1   LLR
+## 2   LLR
+## 3   LLR
+## 4   LLR
+## 5   LLR
+## 6   LLR
+## 
+## [99 rows x 1 column]</code></pre>
+<p>Y pintando lo mismo</p>
+<pre class="r"><code>arbol_ind &lt;- h2o.getModelTree(model = gbm_h2o, tree_number = 1)
+NodesInfo(arbol_ind )</code></pre>
+<pre><code>## [1] &quot;Node ID 0 has left child node with index 1 and right child node with index 2 The split feature is sex. The NA direction is LEFT&quot;
+## [1] &quot;Node ID 1 has left child node with index 3 and right child node with index 4 The split feature is pclass. The NA direction is LEFT&quot;
+## [1] &quot;Node ID 2 has left child node with index 5 and right child node with index 6 The split feature is pclass. The NA direction is RIGHT&quot;
+## [1] &quot;Node ID 3 has left child node with index 7 and right child node with index 8 The split feature is pclass. The NA direction is RIGHT&quot;
+## [1] &quot;Node ID 11 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;
+## [1] &quot;Node ID 12 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;
+## [1] &quot;Node ID 6 has left child node with index 9 and right child node with index 10 The split feature is pclass. The NA direction is RIGHT&quot;
+## [1] &quot;Node ID 13 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;
+## [1] &quot;Node ID 14 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;
+## [1] &quot;Node ID 15 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;
+## [1] &quot;Node ID 16 has left child node with index -1 and right child node with index -1 The split feature is NA. The NA direction is NA&quot;</code></pre>
+<p>Al pintar vemos un par de cosas curiosas, en primer lugar, h2o.gbm no ha codificado con one-hot las variables categóricas, esto permite por ejemplo que se pueden obtener reglas de corte como Izquierda:(Madrid, Barcelona, Valencia), Derecha: (resto de provincias), mientras que One Hot ese tipo de partición requiere más profundidad en el árbol. Y en segundo lugar vemos que por ejemplo los NA’s (y los nuevos niveles en test) de la variable <em>pclass</em> en un nodo van junto con p_class (2,3), en otro junto con p_class=1 y en otro junto p_class=3. El criterio elegido es en cada corte, los Nas y por ende los nuevos niveles no vistos en train van hacia dónde va la gente.</p>
+<pre class="r"><code>titanicDataTree = createDataTree(arbol_ind)
+plotDataTree(titanicDataTree, rankdir = &quot;TB&quot;)</code></pre>
+<div id="htmlwidget-2" style="width:672px;height:480px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2">{"x":{"diagram":"digraph {\n\ngraph [rankdir = \"TB\",\n       dpi = \"70\"]\n\n\n\n  \"1\" [label = \"sex\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"2\" [label = \"pclass (L)\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"3\" [label = \"pclass\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"4\" [label = \"prediction: -0.09915654\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"5\" [label = \"prediction: -0.097279005\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"6\" [label = \"prediction: -0.023911675\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"7\" [label = \"pclass (R)\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"8\" [label = \"prediction: 0.042511664\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"9\" [label = \"pclass\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"10\" [label = \"prediction: 0.20330454\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"11\" [label = \"prediction: 0.24201173\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n\"1\"->\"2\" [fontname = \"Palatino-italic\", label = \"male, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"1\"->\"7\" [fontname = \"Palatino-italic\", label = \"female\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"2\"->\"3\" [fontname = \"Palatino-italic\", label = \"2, 3, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"2\"->\"6\" [fontname = \"Palatino-italic\", label = \"1\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"7\"->\"8\" [fontname = \"Palatino-italic\", label = \"3\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"7\"->\"9\" [fontname = \"Palatino-italic\", label = \"1, 2, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"3\"->\"4\" [fontname = \"Palatino-italic\", label = \"2\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"3\"->\"5\" [fontname = \"Palatino-italic\", label = \"3, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"9\"->\"10\" [fontname = \"Palatino-italic\", label = \"2\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"9\"->\"11\" [fontname = \"Palatino-italic\", label = \"1, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<p>Y nada más. hasta otra.</p>
+<p>Nota: Los valores de prediction que saca plotDataTree no son las predicciones del modelo, sino las raw que saca ese árbol en particular. Como en los modelos de gradient boosting se va construyendo cada árbol sobre los errores del anterior, ni siquiera es la probabilidad en escala logit. He buscado en la docu de h2o pero no está claro qué es este valor. Eso sí, las ramas en el árbol están bien.</p>
+</div>
+</div>
