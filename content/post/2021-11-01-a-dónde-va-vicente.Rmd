@@ -139,10 +139,15 @@ Y vemos que los NA, siempre van hacia los 0's.
 source("../../plot_h2o_tree.R")
 
 titanicDataTree_XG = createDataTree(arbol_ind_xg)
+```
 
+
+```{r, eval=FALSE}
 plotDataTree(titanicDataTree_XG, rankdir = "TB")
 ```
 
+
+![](/post/2021-11-01-a-dónde-va-vicente_files/xgboost_data_tree.png)
 
 ### Modelo h2o.gbm
 
@@ -180,12 +185,12 @@ Al pintar vemos un par de cosas curiosas, en primer lugar, h2o.gbm no ha codific
 
 
 
-```{r}
+```{r, eval=FALSE}
 titanicDataTree = createDataTree(arbol_ind)
 plotDataTree(titanicDataTree, rankdir = "TB")
 ```
 
-
+![](/post/2021-11-01-a-dónde-va-vicente_files/h2o_gbm_datatree.png)
 Y nada más. hasta otra.
 
 Nota: Los valores de prediction que saca plotDataTree no son las predicciones del modelo, sino las raw que saca ese árbol en particular. Como en los modelos de gradient boosting se va construyendo cada árbol sobre los errores del anterior, ni siquiera es la probabilidad en escala logit. He buscado en la docu de h2o pero no está claro qué  es este valor. Eso sí, las ramas en el árbol están bien. 

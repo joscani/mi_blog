@@ -14,10 +14,6 @@ keywords:
 ---
 
 <script src="2021-11-01-a-dónde-va-vicente_files/header-attrs/header-attrs.js"></script>
-<script src="2021-11-01-a-dónde-va-vicente_files/htmlwidgets/htmlwidgets.js"></script>
-<script src="2021-11-01-a-dónde-va-vicente_files/viz/viz.js"></script>
-<link href="2021-11-01-a-dónde-va-vicente_files/DiagrammeR-styles/styles.css" rel="stylesheet" />
-<script src="2021-11-01-a-dónde-va-vicente_files/grViz-binding/grViz.js"></script>
 
 
 <p>Cuando estamos haciendo un modelo y tratamos con variables categóricas como predictoras, hay que ser muy cuidadoso. Por ejemplo hay que tener en cuenta qué pasa cuándo tenemos un nuevo nivel en el conjunto de datos a predecir que no estaba en el de entrenamiento. Por ejemplo, si estoy utilizando un algoritmo moderno tipo xgboost, y tengo como variable predictora la provincia. ¿Qué pasa si en el conjunto de entrenamiento no tengo datos de “Granada”, pero en el de predicción si?</p>
@@ -37,11 +33,11 @@ h2o.init( max_mem_size = &quot;25G&quot;)</code></pre>
 <pre><code>##  Connection successful!
 ## 
 ## R is connected to the H2O cluster: 
-##     H2O cluster uptime:         34 minutes 9 seconds 
+##     H2O cluster uptime:         48 minutes 46 seconds 
 ##     H2O cluster timezone:       Europe/Madrid 
 ##     H2O data parsing timezone:  UTC 
 ##     H2O cluster version:        3.34.0.3 
-##     H2O cluster version age:    24 days  
+##     H2O cluster version age:    25 days  
 ##     H2O cluster name:           H2O_started_from_R_jose_lhz426 
 ##     H2O cluster total nodes:    1 
 ##     H2O cluster total memory:   21.83 GB 
@@ -61,7 +57,7 @@ titanic &lt;- h2o.importFile(f)</code></pre>
   |                                                                            
   |                                                                      |   0%
   |                                                                            
-  |======                                                                |   8%
+  |==============                                                        |  20%
   |                                                                            
   |======================================================================| 100%</code></pre>
 <pre class="r"><code>titanic[&#39;survived&#39;] &lt;- as.factor(titanic[&#39;survived&#39;])
@@ -213,11 +209,9 @@ Y vemos que los NA, siempre van hacia los 0’s.</p>
 <pre class="r"><code>## importo funciones , encontradas por internet, como no, para pintar el árbol
 source(&quot;../../plot_h2o_tree.R&quot;)</code></pre>
 <pre><code>## Loading required package: data.tree</code></pre>
-<pre class="r"><code>titanicDataTree_XG = createDataTree(arbol_ind_xg)
-
-plotDataTree(titanicDataTree_XG, rankdir = &quot;TB&quot;)</code></pre>
-<div id="htmlwidget-1" style="width:672px;height:480px;" class="grViz html-widget"></div>
-<script type="application/json" data-for="htmlwidget-1">{"x":{"diagram":"digraph {\n\ngraph [rankdir = \"TB\",\n       dpi = \"70\"]\n\n\n\n  \"1\" [label = \"sex.female\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"2\" [label = \"pclass.1\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"3\" [label = \"prediction: -0.4124294\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"4\" [label = \"prediction: -0.20000002\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"5\" [label = \"pclass.3\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"6\" [label = \"prediction: 0.49345794\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"7\" [label = \"prediction: -0.016574586\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n\"1\"->\"2\" [fontname = \"Palatino-italic\", label = \"< 1 ,NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"1\"->\"5\" [fontname = \"Palatino-italic\", label = \">= 1 \", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"2\"->\"3\" [fontname = \"Palatino-italic\", label = \"< 1 ,NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"2\"->\"4\" [fontname = \"Palatino-italic\", label = \">= 1 \", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"5\"->\"6\" [fontname = \"Palatino-italic\", label = \"< 1 ,NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"5\"->\"7\" [fontname = \"Palatino-italic\", label = \">= 1 \", fontsize = \"26\", fontcolor = \"royalblue4\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>titanicDataTree_XG = createDataTree(arbol_ind_xg)</code></pre>
+<pre class="r"><code>plotDataTree(titanicDataTree_XG, rankdir = &quot;TB&quot;)</code></pre>
+<p><img src="/post/2021-11-01-a-dónde-va-vicente_files/xgboost_data_tree.png" /></p>
 </div>
 <div id="modelo-h2o.gbm" class="section level3">
 <h3>Modelo h2o.gbm</h3>
@@ -282,9 +276,8 @@ NodesInfo(arbol_ind )</code></pre>
 <p>Al pintar vemos un par de cosas curiosas, en primer lugar, h2o.gbm no ha codificado con one-hot las variables categóricas, esto permite por ejemplo que se pueden obtener reglas de corte como Izquierda:(Madrid, Barcelona, Valencia), Derecha: (resto de provincias), mientras que One Hot ese tipo de partición requiere más profundidad en el árbol. Y en segundo lugar vemos que por ejemplo los NA’s (y los nuevos niveles en test) de la variable <em>pclass</em> en un nodo van junto con p_class (2,3), en otro junto con p_class=1 y en otro junto p_class=3. El criterio elegido es en cada corte, los Nas y por ende los nuevos niveles no vistos en train van hacia dónde va la gente.</p>
 <pre class="r"><code>titanicDataTree = createDataTree(arbol_ind)
 plotDataTree(titanicDataTree, rankdir = &quot;TB&quot;)</code></pre>
-<div id="htmlwidget-2" style="width:672px;height:480px;" class="grViz html-widget"></div>
-<script type="application/json" data-for="htmlwidget-2">{"x":{"diagram":"digraph {\n\ngraph [rankdir = \"TB\",\n       dpi = \"70\"]\n\n\n\n  \"1\" [label = \"sex\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"2\" [label = \"pclass (L)\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"3\" [label = \"pclass\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"4\" [label = \"prediction: -0.09915654\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"5\" [label = \"prediction: -0.097279005\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"6\" [label = \"prediction: -0.023911675\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"7\" [label = \"pclass (R)\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"8\" [label = \"prediction: 0.042511664\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"9\" [label = \"pclass\", fontname = \"Palatino-bold\", shape = \"diamond\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"10\" [label = \"prediction: 0.20330454\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n  \"11\" [label = \"prediction: 0.24201173\", fontname = \"Palatino\", shape = \"oval\", fontsize = \"26\", fontcolor = \"royalblue4\", height = \"0.75\", width = \"1\", fillcolor = \"#FFFFFF\"] \n\"1\"->\"2\" [fontname = \"Palatino-italic\", label = \"male, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"1\"->\"7\" [fontname = \"Palatino-italic\", label = \"female\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"2\"->\"3\" [fontname = \"Palatino-italic\", label = \"2, 3, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"2\"->\"6\" [fontname = \"Palatino-italic\", label = \"1\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"7\"->\"8\" [fontname = \"Palatino-italic\", label = \"3\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"7\"->\"9\" [fontname = \"Palatino-italic\", label = \"1, 2, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"3\"->\"4\" [fontname = \"Palatino-italic\", label = \"2\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"3\"->\"5\" [fontname = \"Palatino-italic\", label = \"3, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"9\"->\"10\" [fontname = \"Palatino-italic\", label = \"2\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n\"9\"->\"11\" [fontname = \"Palatino-italic\", label = \"1, NA\", fontsize = \"26\", fontcolor = \"royalblue4\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
-<p>Y nada más. hasta otra.</p>
+<p><img src="/post/2021-11-01-a-dónde-va-vicente_files/h2o_gbm_datatree.png" />
+Y nada más. hasta otra.</p>
 <p>Nota: Los valores de prediction que saca plotDataTree no son las predicciones del modelo, sino las raw que saca ese árbol en particular. Como en los modelos de gradient boosting se va construyendo cada árbol sobre los errores del anterior, ni siquiera es la probabilidad en escala logit. He buscado en la docu de h2o pero no está claro qué es este valor. Eso sí, las ramas en el árbol están bien.</p>
 </div>
 </div>

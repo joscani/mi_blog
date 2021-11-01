@@ -65,3 +65,8 @@ post = "/:year/:month/:day/:slug/"
   linkedin = "joscani"
   
 
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
