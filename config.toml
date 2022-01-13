@@ -10,6 +10,7 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
 canonifyurls = true
 paginate = 10
 relativeURLs = true
+rssLimit = 10
 
 
 [permalinks]
