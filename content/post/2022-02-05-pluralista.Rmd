@@ -11,7 +11,7 @@ tags:
   - causal inference
   - R
 description: ''
-draft: yes
+draft: no
 topics: []
 ---
 
@@ -245,7 +245,6 @@ ggplot() +
   labs(title = "Efecto directo de M sobre D", 
        x = "m")
 ```
-
 
 
 
