@@ -16,10 +16,11 @@ topics: []
 ---
 
 
-Ando viendo los vídeos de Richard McElreath , [Statistical Rethinking 2022](https://github.com/rmcelreath/stat_rethinking_2022) y ciertamente me están gustando mucho. En la segunda edición de su libro hace hincapié en temas de inferencia causa. Cuenta bastante bien todo el tema de los "confounders", "forks", "colliders" y demás. Además lo hace simulando datos, por lo que entiende todo de forma muy sencilla. Un par de conceptos que me han llamado la atención son por ejemplo cuando dice que condicionar por una variable no significa lo mismo en un modelo de regresión al uso que en uno bayesiano, en el segundo caso significa incluir esa variable en la distribución conjunta.  Esto permite por ejemplo que bajo el marco de un modelo bayesiano se pueda condicionar incluso por un "collider" cosa que los entendidos de la inferencia causal prohíben expresamente pues eso abre un camino no causal en el DAG definido.
+Ando viendo los vídeos de Richard McElreath , [Statistical Rethinking 2022](https://github.com/rmcelreath/stat_rethinking_2022) y ciertamente me están gustando mucho. En la segunda edición de su libro hace hincapié en temas de inferencia causal. Cuenta bastante bien todo el tema de los "confounders", "forks", "colliders" y demás. Además lo hace simulando datos, por lo que entiende todo de forma muy sencilla. Un par de conceptos que me han llamado la atención son por ejemplo cuando dice que condicionar por una variable no significa lo mismo en un modelo de regresión al uso que en uno bayesiano, en el segundo caso significa incluir esa variable en la distribución conjunta.  Esto permite por ejemplo que bajo el marco de un modelo bayesiano se pueda condicionar incluso por un "collider" cosa que los entendidos de la inferencia causal prohíben expresamente pues eso abre un camino no causal en el DAG definido.
 
 
 Según la [RAE](https://dle.rae.es/pluralismo) , pluralismo significa 
+
 > pluralismo
 1. m. Sistema por el cual se acepta o reconoce la pluralidad de doctrinas o posiciones.
 
@@ -93,7 +94,7 @@ ggdag_adjustment_set(g, exposure = "M", outcome = "D", effect = "direct")
 
 Richard propone lo que el llama "full luxury bayesian" que consiste en estimar a la vez todo el DAG y luego generar simulaciones usando la distribución conjunta obtenida para medir el efecto de la "intervención" y poder obtener el efecto causal. 
 
-Notese que cuando en el DAG las relaciones se pueden expresar como modelos lineales, se puede estimar todo el DAG usando técnicas como los modelos de ecuaciones estructurales o el path analysis.
+Nó    tese que cuando en el DAG las relaciones se pueden expresar como modelos lineales, se puede estimar todo el DAG usando técnicas como los modelos de ecuaciones estructurales o el path analysis.
 
 ## Simulación
 
@@ -148,6 +149,7 @@ Una forma de estimar el efecto de M sobre D es tirar de path analysis, que en es
 
 
 Sea: 
+
 * b: Efecto de B1 sobre M
 * m: Efecto de M sobre D
 

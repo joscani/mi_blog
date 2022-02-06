@@ -18,10 +18,12 @@ topics: []
 <script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
 
 
-<p>Ando viendo los vídeos de Richard McElreath , <a href="https://github.com/rmcelreath/stat_rethinking_2022">Statistical Rethinking 2022</a> y ciertamente me están gustando mucho. En la segunda edición de su libro hace hincapié en temas de inferencia causa. Cuenta bastante bien todo el tema de los “confounders”, “forks”, “colliders” y demás. Además lo hace simulando datos, por lo que entiende todo de forma muy sencilla. Un par de conceptos que me han llamado la atención son por ejemplo cuando dice que condicionar por una variable no significa lo mismo en un modelo de regresión al uso que en uno bayesiano, en el segundo caso significa incluir esa variable en la distribución conjunta. Esto permite por ejemplo que bajo el marco de un modelo bayesiano se pueda condicionar incluso por un “collider” cosa que los entendidos de la inferencia causal prohíben expresamente pues eso abre un camino no causal en el DAG definido.</p>
-<p>Según la <a href="https://dle.rae.es/pluralismo">RAE</a> , pluralismo significa
-&gt; pluralismo
+<p>Ando viendo los vídeos de Richard McElreath , <a href="https://github.com/rmcelreath/stat_rethinking_2022">Statistical Rethinking 2022</a> y ciertamente me están gustando mucho. En la segunda edición de su libro hace hincapié en temas de inferencia causal. Cuenta bastante bien todo el tema de los “confounders”, “forks”, “colliders” y demás. Además lo hace simulando datos, por lo que entiende todo de forma muy sencilla. Un par de conceptos que me han llamado la atención son por ejemplo cuando dice que condicionar por una variable no significa lo mismo en un modelo de regresión al uso que en uno bayesiano, en el segundo caso significa incluir esa variable en la distribución conjunta. Esto permite por ejemplo que bajo el marco de un modelo bayesiano se pueda condicionar incluso por un “collider” cosa que los entendidos de la inferencia causal prohíben expresamente pues eso abre un camino no causal en el DAG definido.</p>
+<p>Según la <a href="https://dle.rae.es/pluralismo">RAE</a> , pluralismo significa</p>
+<blockquote>
+<p>pluralismo
 1. m. Sistema por el cual se acepta o reconoce la pluralidad de doctrinas o posiciones.</p>
+</blockquote>
 <p>y en los videos se toma dicha postura, por ejemplo, se especifica el modelo teórico utilizando los diagramas causales y el Back door criterio para ver sobre qué variables hay que condicionar o no , para ver el efecto total de X sobre Y o para estimar el efecto directo.</p>
 <p>Hay un ejemplo muy bueno en este <a href="https://elevanth.org/blog/2021/06/29/regression-fire-and-dangerous-things-3-3/">post de Richard</a>.</p>
 <p><strong>Nota</strong>: Este post es simplemente para entender un poco el post de Richard, el mérito es totalmente de él.</p>
@@ -79,7 +81,7 @@ ggdag(g) +
 <p><img src="/post/2022-02-05-pluralista_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
 <p>¿Cómo podemos “estimar” el efecto de M sobre D dado que no podemos condicionar (en el sentido clásico) sobre U? .</p>
 <p>Richard propone lo que el llama “full luxury bayesian” que consiste en estimar a la vez todo el DAG y luego generar simulaciones usando la distribución conjunta obtenida para medir el efecto de la “intervención” y poder obtener el efecto causal.</p>
-<p>Notese que cuando en el DAG las relaciones se pueden expresar como modelos lineales, se puede estimar todo el DAG usando técnicas como los modelos de ecuaciones estructurales o el path analysis.</p>
+<p>Nó tese que cuando en el DAG las relaciones se pueden expresar como modelos lineales, se puede estimar todo el DAG usando técnicas como los modelos de ecuaciones estructurales o el path analysis.</p>
 <div id="simulación" class="section level2">
 <h2>Simulación</h2>
 <p>Simulamos unos datos de forma qué vamos a conocer la “verdad” de la relaciones entre variables, que para eso simulamos.</p>
@@ -132,9 +134,11 @@ D &lt;- rnorm( N , 2  *B2 + U + 0 * M )</code></pre>
 ##     -0.3204       0.3231       2.0550</code></pre>
 <p>En esta situación, no podemos estimar el efecto de M sobre D utilizando un solo modelo.</p>
 <p>Una forma de estimar el efecto de M sobre D es tirar de path analysis, que en este caso se puede al ser las relaciones lineales.</p>
-<p>Sea:
-* b: Efecto de B1 sobre M
-* m: Efecto de M sobre D</p>
+<p>Sea:</p>
+<ul>
+<li>b: Efecto de B1 sobre M</li>
+<li>m: Efecto de M sobre D</li>
+</ul>
 <p>Se tiene que</p>
 <p><span class="math display">\[Cov(B1, D ) = b\cdot m \cdot Var(B1)\]</span>
 Y como</p>
@@ -190,30 +194,30 @@ flbi &lt;- ulam(
 ## Chain 4 Iteration:    1 / 2500 [  0%]  (Warmup) 
 ## Chain 4 Iteration:  100 / 2500 [  4%]  (Warmup) 
 ## Chain 3 Iteration:  100 / 2500 [  4%]  (Warmup) 
-## Chain 4 Iteration:  200 / 2500 [  8%]  (Warmup) 
 ## Chain 1 Iteration:  100 / 2500 [  4%]  (Warmup) 
+## Chain 4 Iteration:  200 / 2500 [  8%]  (Warmup) 
 ## Chain 2 Iteration:  100 / 2500 [  4%]  (Warmup) 
 ## Chain 1 Iteration:  200 / 2500 [  8%]  (Warmup) 
 ## Chain 3 Iteration:  200 / 2500 [  8%]  (Warmup) 
 ## Chain 4 Iteration:  300 / 2500 [ 12%]  (Warmup) 
+## Chain 1 Iteration:  300 / 2500 [ 12%]  (Warmup) 
 ## Chain 2 Iteration:  200 / 2500 [  8%]  (Warmup) 
 ## Chain 4 Iteration:  400 / 2500 [ 16%]  (Warmup) 
-## Chain 1 Iteration:  300 / 2500 [ 12%]  (Warmup) 
 ## Chain 3 Iteration:  300 / 2500 [ 12%]  (Warmup) 
-## Chain 2 Iteration:  300 / 2500 [ 12%]  (Warmup) 
 ## Chain 1 Iteration:  400 / 2500 [ 16%]  (Warmup) 
-## Chain 3 Iteration:  400 / 2500 [ 16%]  (Warmup) 
+## Chain 2 Iteration:  300 / 2500 [ 12%]  (Warmup) 
 ## Chain 4 Iteration:  500 / 2500 [ 20%]  (Warmup) 
 ## Chain 4 Iteration:  501 / 2500 [ 20%]  (Sampling) 
+## Chain 3 Iteration:  400 / 2500 [ 16%]  (Warmup) 
 ## Chain 2 Iteration:  400 / 2500 [ 16%]  (Warmup) 
 ## Chain 1 Iteration:  500 / 2500 [ 20%]  (Warmup) 
 ## Chain 1 Iteration:  501 / 2500 [ 20%]  (Sampling) 
 ## Chain 4 Iteration:  600 / 2500 [ 24%]  (Sampling) 
 ## Chain 3 Iteration:  500 / 2500 [ 20%]  (Warmup) 
 ## Chain 3 Iteration:  501 / 2500 [ 20%]  (Sampling) 
+## Chain 1 Iteration:  600 / 2500 [ 24%]  (Sampling) 
 ## Chain 2 Iteration:  500 / 2500 [ 20%]  (Warmup) 
 ## Chain 2 Iteration:  501 / 2500 [ 20%]  (Sampling) 
-## Chain 1 Iteration:  600 / 2500 [ 24%]  (Sampling) 
 ## Chain 4 Iteration:  700 / 2500 [ 28%]  (Sampling) 
 ## Chain 3 Iteration:  600 / 2500 [ 24%]  (Sampling) 
 ## Chain 2 Iteration:  600 / 2500 [ 24%]  (Sampling) 
@@ -221,85 +225,85 @@ flbi &lt;- ulam(
 ## Chain 1 Iteration:  700 / 2500 [ 28%]  (Sampling) 
 ## Chain 3 Iteration:  700 / 2500 [ 28%]  (Sampling) 
 ## Chain 2 Iteration:  700 / 2500 [ 28%]  (Sampling) 
-## Chain 1 Iteration:  800 / 2500 [ 32%]  (Sampling) 
 ## Chain 4 Iteration:  900 / 2500 [ 36%]  (Sampling) 
+## Chain 1 Iteration:  800 / 2500 [ 32%]  (Sampling) 
 ## Chain 3 Iteration:  800 / 2500 [ 32%]  (Sampling) 
 ## Chain 2 Iteration:  800 / 2500 [ 32%]  (Sampling) 
-## Chain 1 Iteration:  900 / 2500 [ 36%]  (Sampling) 
 ## Chain 4 Iteration: 1000 / 2500 [ 40%]  (Sampling) 
+## Chain 1 Iteration:  900 / 2500 [ 36%]  (Sampling) 
 ## Chain 3 Iteration:  900 / 2500 [ 36%]  (Sampling) 
 ## Chain 2 Iteration:  900 / 2500 [ 36%]  (Sampling) 
 ## Chain 4 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
 ## Chain 1 Iteration: 1000 / 2500 [ 40%]  (Sampling) 
 ## Chain 3 Iteration: 1000 / 2500 [ 40%]  (Sampling) 
 ## Chain 2 Iteration: 1000 / 2500 [ 40%]  (Sampling) 
-## Chain 1 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
 ## Chain 4 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
+## Chain 1 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
 ## Chain 3 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
-## Chain 2 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
 ## Chain 4 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
 ## Chain 1 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
+## Chain 2 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
 ## Chain 3 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
-## Chain 2 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
-## Chain 1 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
 ## Chain 4 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
+## Chain 1 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
+## Chain 2 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
 ## Chain 3 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
 ## Chain 2 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
 ## Chain 4 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
 ## Chain 1 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
 ## Chain 3 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
-## Chain 2 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
 ## Chain 4 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
 ## Chain 1 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
+## Chain 2 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
 ## Chain 3 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
-## Chain 2 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
 ## Chain 4 Iteration: 1700 / 2500 [ 68%]  (Sampling) 
 ## Chain 1 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
+## Chain 2 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
 ## Chain 3 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
-## Chain 2 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
 ## Chain 4 Iteration: 1800 / 2500 [ 72%]  (Sampling) 
 ## Chain 1 Iteration: 1700 / 2500 [ 68%]  (Sampling) 
+## Chain 2 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
 ## Chain 3 Iteration: 1700 / 2500 [ 68%]  (Sampling) 
+## Chain 4 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
 ## Chain 1 Iteration: 1800 / 2500 [ 72%]  (Sampling) 
 ## Chain 2 Iteration: 1700 / 2500 [ 68%]  (Sampling) 
-## Chain 4 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
 ## Chain 3 Iteration: 1800 / 2500 [ 72%]  (Sampling) 
+## Chain 4 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
 ## Chain 1 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
 ## Chain 2 Iteration: 1800 / 2500 [ 72%]  (Sampling) 
-## Chain 4 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
 ## Chain 3 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
-## Chain 2 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
-## Chain 1 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
 ## Chain 4 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
+## Chain 1 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
+## Chain 2 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
 ## Chain 3 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
-## Chain 2 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
-## Chain 1 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
 ## Chain 4 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
+## Chain 1 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
+## Chain 2 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
 ## Chain 3 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
-## Chain 2 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
-## Chain 1 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
 ## Chain 4 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
-## Chain 3 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
+## Chain 1 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
+## Chain 2 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
 ## Chain 2 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
-## Chain 1 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
+## Chain 3 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
 ## Chain 4 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
-## Chain 3 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
-## Chain 2 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
-## Chain 1 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 1 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
 ## Chain 4 Iteration: 2500 / 2500 [100%]  (Sampling) 
-## Chain 4 finished in 17.0 seconds.
-## Chain 3 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
-## Chain 2 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 4 finished in 17.8 seconds.
+## Chain 1 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 2 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
+## Chain 3 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
 ## Chain 1 Iteration: 2500 / 2500 [100%]  (Sampling) 
-## Chain 1 finished in 17.5 seconds.
-## Chain 3 Iteration: 2500 / 2500 [100%]  (Sampling) 
-## Chain 3 finished in 17.6 seconds.
+## Chain 2 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 3 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 1 finished in 18.4 seconds.
 ## Chain 2 Iteration: 2500 / 2500 [100%]  (Sampling) 
-## Chain 2 finished in 17.9 seconds.
+## Chain 3 Iteration: 2500 / 2500 [100%]  (Sampling) 
+## Chain 2 finished in 18.8 seconds.
+## Chain 3 finished in 18.8 seconds.
 ## 
 ## All 4 chains finished successfully.
-## Mean chain execution time: 17.5 seconds.
-## Total execution time: 18.0 seconds.</code></pre>
+## Mean chain execution time: 18.5 seconds.
+## Total execution time: 18.9 seconds.</code></pre>
 <pre class="r"><code>post &lt;- extract.samples(flbi)
 precis(flbi)</code></pre>
 <pre><code>## 1000 vector or matrix parameters hidden. Use depth=2 to show them.</code></pre>
