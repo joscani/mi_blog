@@ -1,0 +1,373 @@
+---
+title: Pluralista
+author: jlcr
+date: '2022-02-06'
+slug: pluralista
+categories:
+  - estadística
+  - R
+tags:
+  - análisis bayesiano
+  - causal inference
+  - R
+description: ''
+draft: yes
+topics: []
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<p>Ando viendo los vídeos de Richard McElreath , <a href="https://github.com/rmcelreath/stat_rethinking_2022">Statistical Rethinking 2022</a> y ciertamente me están gustando mucho. En la segunda edición de su libro hace hincapié en temas de inferencia causa. Cuenta bastante bien todo el tema de los “confounders”, “forks”, “colliders” y demás. Además lo hace simulando datos, por lo que entiende todo de forma muy sencilla. Un par de conceptos que me han llamado la atención son por ejemplo cuando dice que condicionar por una variable no significa lo mismo en un modelo de regresión al uso que en uno bayesiano, en el segundo caso significa incluir esa variable en la distribución conjunta. Esto permite por ejemplo que bajo el marco de un modelo bayesiano se pueda condicionar incluso por un “collider” cosa que los entendidos de la inferencia causal prohíben expresamente pues eso abre un camino no causal en el DAG definido.</p>
+<p>Según la <a href="https://dle.rae.es/pluralismo">RAE</a> , pluralismo significa
+&gt; pluralismo
+1. m. Sistema por el cual se acepta o reconoce la pluralidad de doctrinas o posiciones.</p>
+<p>y en los videos se toma dicha postura, por ejemplo, se especifica el modelo teórico utilizando los diagramas causales y el Back door criterio para ver sobre qué variables hay que condicionar o no , para ver el efecto total de X sobre Y o para estimar el efecto directo.</p>
+<p>Hay un ejemplo muy bueno en este <a href="https://elevanth.org/blog/2021/06/29/regression-fire-and-dangerous-things-3-3/">post de Richard</a>.</p>
+<p><strong>Nota</strong>: Este post es simplemente para entender un poco el post de Richard, el mérito es totalmente de él.</p>
+<p>Básicamente es una situación dónde se quiere estimar el efecto que tiene sobre el número de hijos que tiene una mujer, el número de hijos que tuvo su madre. En el diagrama causal también se indica la influencia que tiene el orden de nacimiento de de la madre y de la hija.</p>
+<p>Diagrama causal:</p>
+<p>M: Número de hijos de la madre
+D: Número de hijos de la hija
+B1: Orden de nacimiento de la madre
+B2: Orden de nacimiento de la hija
+U: Variable no medida en los datos, que pudiera ser cosas como influencia del entorno social y económico dónde viven madre e hija, que influye en las decisión del número de hijos de ambas.</p>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ────────────────────────────────── tidyverse 1.3.1.9000 ──</code></pre>
+<pre><code>## ✓ ggplot2 3.3.5     ✓ purrr   0.3.4
+## ✓ tibble  3.1.6     ✓ dplyr   1.0.7
+## ✓ tidyr   1.1.4     ✓ stringr 1.4.0
+## ✓ readr   2.1.2     ✓ forcats 0.5.1</code></pre>
+<pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>library(dagitty)
+library(ggdag)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;ggdag&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:stats&#39;:
+## 
+##     filter</code></pre>
+<pre class="r"><code>library(patchwork)
+
+g &lt;- dagitty(&quot;dag{ 
+  M -&gt; D ;
+  B2 -&gt; D;
+  B1 -&gt; M;
+  U -&gt; M;
+  U -&gt; D
+ }&quot;)
+
+
+coords &lt;-  
+  list(
+  x = c(B1 = 1, M = 2,  U = 3.5, D = 5, B2 = 6),
+  y = c(B1 = 0, M = 0, U = 1, D = 0, B2 = 0)
+)
+
+coordinates(g) &lt;- coords
+
+ggdag(g) + 
+  theme_void()</code></pre>
+<p><img src="/post/2022-02-05-pluralista_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<p>Si queremos estimar el efecto global o el directo de M sobre D, habría que condicionar por U (siguiendo el backdoor criterio), y al ser no observable, no se puede estimar.</p>
+<pre class="r"><code>adjustmentSets(g, exposure = &quot;M&quot;, outcome = &quot;D&quot;, effect = &quot;total&quot;  )</code></pre>
+<pre><code>## { U }</code></pre>
+<pre class="r"><code>adjustmentSets(g, exposure = &quot;M&quot;, outcome = &quot;D&quot;, effect = &quot;direct&quot;  )</code></pre>
+<pre><code>## { U }</code></pre>
+<pre class="r"><code>ggdag_adjustment_set(g, exposure = &quot;M&quot;, outcome = &quot;D&quot;, effect = &quot;direct&quot;)</code></pre>
+<p><img src="/post/2022-02-05-pluralista_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>¿Cómo podemos “estimar” el efecto de M sobre D dado que no podemos condicionar (en el sentido clásico) sobre U? .</p>
+<p>Richard propone lo que el llama “full luxury bayesian” que consiste en estimar a la vez todo el DAG y luego generar simulaciones usando la distribución conjunta obtenida para medir el efecto de la “intervención” y poder obtener el efecto causal.</p>
+<p>Notese que cuando en el DAG las relaciones se pueden expresar como modelos lineales, se puede estimar todo el DAG usando técnicas como los modelos de ecuaciones estructurales o el path analysis.</p>
+<div id="simulación" class="section level2">
+<h2>Simulación</h2>
+<p>Simulamos unos datos de forma qué vamos a conocer la “verdad” de la relaciones entre variables, que para eso simulamos.</p>
+<pre class="r"><code>set.seed(1908)
+N &lt;- 1000 # número de pares, 1000 madres y 1000 hijas
+
+
+U &lt;- rnorm(N,0,1) # Simulamos el confounder
+
+# orden de nacimiento y 
+B1 &lt;- rbinom(N,size=1,prob=0.5)  # 50% de madres nacieeron en primer lugar
+M &lt;- rnorm( N , 2 * B1 + U )
+
+B2 &lt;- rbinom(N,size=1,prob=0.5) # 50% son las primogénitas
+D &lt;- rnorm( N , 2  *B2 + U + 0 * M )</code></pre>
+<p>En esta simulación se ha forzado que el efecto del número de hijos de la madre sobre el núemro de hijos de la hija sea nulo. Por tanto sabemos que el efecto de M sobre D es 0..</p>
+<p>Si hacemos un modelo sin condicionar, tenemos sesgo</p>
+<pre class="r"><code>lm(D ~ M)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = D ~ M)
+## 
+## Coefficients:
+## (Intercept)            M  
+##      0.7108       0.2930</code></pre>
+<p>Condicionando por B1 también, de hecho tenemos la situación de amplificación del sesgo</p>
+<pre class="r"><code>lm(D ~ M + B1)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = D ~ M + B1)
+## 
+## Coefficients:
+## (Intercept)            M           B1  
+##      1.0356       0.4606      -1.0441</code></pre>
+<pre class="r"><code>lm(D ~ M + B1 +B2 )</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = D ~ M + B1 + B2)
+## 
+## Coefficients:
+## (Intercept)            M           B1           B2  
+##    -0.01621      0.46913     -0.91307      2.01487</code></pre>
+<pre class="r"><code>lm(D ~ M + B2)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = D ~ M + B2)
+## 
+## Coefficients:
+## (Intercept)            M           B2  
+##     -0.3204       0.3231       2.0550</code></pre>
+<p>En esta situación, no podemos estimar el efecto de M sobre D utilizando un solo modelo.</p>
+<p>Una forma de estimar el efecto de M sobre D es tirar de path analysis, que en este caso se puede al ser las relaciones lineales.</p>
+<p>Sea:
+* b: Efecto de B1 sobre M
+* m: Efecto de M sobre D</p>
+<p>Se tiene que</p>
+<p><span class="math display">\[Cov(B1, D ) = b\cdot m \cdot Var(B1)\]</span>
+Y como</p>
+<p><span class="math display">\[b = \dfrac{Cov(B1,M)}{Var(B1)} \]</span></p>
+<p>Podemos estimar <span class="math inline">\(m\)</span> como</p>
+<p><span class="math display">\[m = \dfrac{Cov(B1,D)}{b \cdot Var(B1)} = \dfrac{Cov(B1,D)}{Cov(B1,M)} \]</span>
+Y</p>
+<pre class="r"><code>(m_hat = cov(B1,D) / cov(B1,M))</code></pre>
+<pre><code>## [1] -0.0563039</code></pre>
+<p>y esta estimación está menos sesgada, antes era del orden de 0.1 o 0.2 y ahora la estimación es del orden 0.01. Pero con esta estimación no tenemos información de su distribución sino sólo de esta estimación puntual. Y si las relaciones no fueran lineales no podría usarse, en cambio la siguiente aproximación si funciona</p>
+</div>
+<div id="full-luxury-bayes" class="section level2">
+<h2>Full luxury bayes</h2>
+<p>Utilizamos la librería de Richard <code>rethinking</code> y también <code>cmdstanr</code> para expresar el modelo causal completo y ajustarlo con Stan.</p>
+<p>Ahora estimamos el DAG completo, aquí es dónde es diferente de la aproximación causal de Pearl, de esta forma podemos “condicionar” incluso por los colliders, porque condicionar en este marco significa meter esa información dentro de la distribución conjunta.</p>
+<pre class="r"><code>library(cmdstanr)
+library(rethinking)
+set_cmdstan_path(&quot;~/Descargas/cmdstan/&quot;)
+
+# No metemos U al ser no observable
+dat &lt;- list(
+  N = N,
+  M = M,
+  D = D,
+  B1 = B1,
+  B2 = B2
+)
+set.seed(1908)
+
+flbi &lt;- ulam(
+  alist(
+    # mom model
+    M ~ normal( mu , sigma ),
+    mu &lt;- a1 + b*B1 + k*U[i],
+    # daughter model
+    D ~ normal( nu , tau ),
+    nu &lt;- a2 + b*B2 + m*M + k*U[i],
+    # B1 and B2
+    B1 ~ bernoulli(p),
+    B2 ~ bernoulli(p),
+    # unmeasured confound
+    vector[N]:U ~ normal(0,1),
+    # priors
+    c(a1,a2,b,m) ~ normal( 0 , 0.5 ),
+    c(k,sigma,tau) ~ exponential( 1 ),
+    p ~ beta(2,2)
+  ), data=dat , chains=4 , cores=4 , warmup = 500, iter=2500 , cmdstan=TRUE )</code></pre>
+<pre><code>## Running MCMC with 4 parallel chains, with 1 thread(s) per chain...
+## 
+## Chain 1 Iteration:    1 / 2500 [  0%]  (Warmup) 
+## Chain 2 Iteration:    1 / 2500 [  0%]  (Warmup) 
+## Chain 3 Iteration:    1 / 2500 [  0%]  (Warmup) 
+## Chain 4 Iteration:    1 / 2500 [  0%]  (Warmup) 
+## Chain 4 Iteration:  100 / 2500 [  4%]  (Warmup) 
+## Chain 3 Iteration:  100 / 2500 [  4%]  (Warmup) 
+## Chain 4 Iteration:  200 / 2500 [  8%]  (Warmup) 
+## Chain 1 Iteration:  100 / 2500 [  4%]  (Warmup) 
+## Chain 2 Iteration:  100 / 2500 [  4%]  (Warmup) 
+## Chain 3 Iteration:  200 / 2500 [  8%]  (Warmup) 
+## Chain 1 Iteration:  200 / 2500 [  8%]  (Warmup) 
+## Chain 4 Iteration:  300 / 2500 [ 12%]  (Warmup) 
+## Chain 4 Iteration:  400 / 2500 [ 16%]  (Warmup) 
+## Chain 1 Iteration:  300 / 2500 [ 12%]  (Warmup) 
+## Chain 2 Iteration:  200 / 2500 [  8%]  (Warmup) 
+## Chain 3 Iteration:  300 / 2500 [ 12%]  (Warmup) 
+## Chain 1 Iteration:  400 / 2500 [ 16%]  (Warmup) 
+## Chain 3 Iteration:  400 / 2500 [ 16%]  (Warmup) 
+## Chain 4 Iteration:  500 / 2500 [ 20%]  (Warmup) 
+## Chain 4 Iteration:  501 / 2500 [ 20%]  (Sampling) 
+## Chain 2 Iteration:  300 / 2500 [ 12%]  (Warmup) 
+## Chain 4 Iteration:  600 / 2500 [ 24%]  (Sampling) 
+## Chain 1 Iteration:  500 / 2500 [ 20%]  (Warmup) 
+## Chain 1 Iteration:  501 / 2500 [ 20%]  (Sampling) 
+## Chain 2 Iteration:  400 / 2500 [ 16%]  (Warmup) 
+## Chain 3 Iteration:  500 / 2500 [ 20%]  (Warmup) 
+## Chain 3 Iteration:  501 / 2500 [ 20%]  (Sampling) 
+## Chain 1 Iteration:  600 / 2500 [ 24%]  (Sampling) 
+## Chain 3 Iteration:  600 / 2500 [ 24%]  (Sampling) 
+## Chain 4 Iteration:  700 / 2500 [ 28%]  (Sampling) 
+## Chain 2 Iteration:  500 / 2500 [ 20%]  (Warmup) 
+## Chain 2 Iteration:  501 / 2500 [ 20%]  (Sampling) 
+## Chain 3 Iteration:  700 / 2500 [ 28%]  (Sampling) 
+## Chain 4 Iteration:  800 / 2500 [ 32%]  (Sampling) 
+## Chain 1 Iteration:  700 / 2500 [ 28%]  (Sampling) 
+## Chain 2 Iteration:  600 / 2500 [ 24%]  (Sampling) 
+## Chain 4 Iteration:  900 / 2500 [ 36%]  (Sampling) 
+## Chain 1 Iteration:  800 / 2500 [ 32%]  (Sampling) 
+## Chain 3 Iteration:  800 / 2500 [ 32%]  (Sampling) 
+## Chain 2 Iteration:  700 / 2500 [ 28%]  (Sampling) 
+## Chain 4 Iteration: 1000 / 2500 [ 40%]  (Sampling) 
+## Chain 1 Iteration:  900 / 2500 [ 36%]  (Sampling) 
+## Chain 3 Iteration:  900 / 2500 [ 36%]  (Sampling) 
+## Chain 2 Iteration:  800 / 2500 [ 32%]  (Sampling) 
+## Chain 4 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
+## Chain 1 Iteration: 1000 / 2500 [ 40%]  (Sampling) 
+## Chain 3 Iteration: 1000 / 2500 [ 40%]  (Sampling) 
+## Chain 2 Iteration:  900 / 2500 [ 36%]  (Sampling) 
+## Chain 4 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
+## Chain 1 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
+## Chain 2 Iteration: 1000 / 2500 [ 40%]  (Sampling) 
+## Chain 3 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
+## Chain 4 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
+## Chain 1 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
+## Chain 2 Iteration: 1100 / 2500 [ 44%]  (Sampling) 
+## Chain 3 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
+## Chain 4 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
+## Chain 3 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
+## Chain 1 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
+## Chain 2 Iteration: 1200 / 2500 [ 48%]  (Sampling) 
+## Chain 4 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
+## Chain 1 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
+## Chain 2 Iteration: 1300 / 2500 [ 52%]  (Sampling) 
+## Chain 3 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
+## Chain 3 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
+## Chain 4 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
+## Chain 1 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
+## Chain 2 Iteration: 1400 / 2500 [ 56%]  (Sampling) 
+## Chain 3 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
+## Chain 4 Iteration: 1700 / 2500 [ 68%]  (Sampling) 
+## Chain 1 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
+## Chain 2 Iteration: 1500 / 2500 [ 60%]  (Sampling) 
+## Chain 3 Iteration: 1700 / 2500 [ 68%]  (Sampling) 
+## Chain 4 Iteration: 1800 / 2500 [ 72%]  (Sampling) 
+## Chain 1 Iteration: 1700 / 2500 [ 68%]  (Sampling) 
+## Chain 2 Iteration: 1600 / 2500 [ 64%]  (Sampling) 
+## Chain 3 Iteration: 1800 / 2500 [ 72%]  (Sampling) 
+## Chain 4 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
+## Chain 1 Iteration: 1800 / 2500 [ 72%]  (Sampling) 
+## Chain 2 Iteration: 1700 / 2500 [ 68%]  (Sampling) 
+## Chain 3 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
+## Chain 4 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
+## Chain 1 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
+## Chain 2 Iteration: 1800 / 2500 [ 72%]  (Sampling) 
+## Chain 3 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
+## Chain 4 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
+## Chain 1 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
+## Chain 2 Iteration: 1900 / 2500 [ 76%]  (Sampling) 
+## Chain 3 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
+## Chain 4 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
+## Chain 1 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
+## Chain 2 Iteration: 2000 / 2500 [ 80%]  (Sampling) 
+## Chain 3 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
+## Chain 4 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
+## Chain 1 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
+## Chain 2 Iteration: 2100 / 2500 [ 84%]  (Sampling) 
+## Chain 3 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
+## Chain 4 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 1 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
+## Chain 2 Iteration: 2200 / 2500 [ 88%]  (Sampling) 
+## Chain 4 Iteration: 2500 / 2500 [100%]  (Sampling) 
+## Chain 3 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 4 finished in 16.9 seconds.
+## Chain 1 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 2 Iteration: 2300 / 2500 [ 92%]  (Sampling) 
+## Chain 3 Iteration: 2500 / 2500 [100%]  (Sampling) 
+## Chain 3 finished in 17.4 seconds.
+## Chain 1 Iteration: 2500 / 2500 [100%]  (Sampling) 
+## Chain 2 Iteration: 2400 / 2500 [ 96%]  (Sampling) 
+## Chain 1 finished in 17.6 seconds.
+## Chain 2 Iteration: 2500 / 2500 [100%]  (Sampling) 
+## Chain 2 finished in 18.0 seconds.
+## 
+## All 4 chains finished successfully.
+## Mean chain execution time: 17.5 seconds.
+## Total execution time: 18.1 seconds.</code></pre>
+<pre class="r"><code>post &lt;- extract.samples(flbi)
+precis(flbi)</code></pre>
+<pre><code>## 1000 vector or matrix parameters hidden. Use depth=2 to show them.</code></pre>
+<pre><code>##             mean         sd        5.5%      94.5%      n_eff     Rhat4
+## m     0.01029393 0.04047150 -0.05430275 0.07409054   890.4789 1.0018319
+## b     1.98864256 0.05811342  1.89487725 2.08168275  3042.1496 1.0007825
+## a2    0.02836364 0.07310509 -0.08729441 0.14659932  1335.7564 1.0027553
+## a1    0.06834714 0.05394291 -0.01785119 0.15621615  3747.6036 1.0007151
+## tau   0.98041340 0.03617180  0.92352906 1.03914055  2745.6394 1.0007016
+## sigma 1.07286195 0.05249312  0.98902178 1.15557275   909.1510 1.0015771
+## k     0.98545837 0.05638324  0.89516212 1.07461055   828.2759 1.0013545
+## p     0.48012384 0.01111044  0.46233213 0.49808700 16117.4910 0.9996995</code></pre>
+<p>Vemos que no aparece la estimación de U, pero en la posterior se ha estimado un valor de U para cada uno de las observaciones. 1000 observaciones y</p>
+<pre class="r"><code>dim(post$U)</code></pre>
+<pre><code>## [1] 8000 1000</code></pre>
+<pre class="r"><code>post$U[1:4, 1:5]</code></pre>
+<pre><code>##          [,1]       [,2]       [,3]      [,4]        [,5]
+## [1,] 0.382053 -0.4087260 -1.5231200  0.486262  0.00381229
+## [2,] 0.733459  0.2971870  0.0441252 -1.424160 -0.98469300
+## [3,] 0.254011 -0.0201819 -0.7499000 -1.444340 -0.51772400
+## [4,] 0.468004  0.1923180 -1.8694400 -1.314570 -0.43902700</code></pre>
+</div>
+<div id="efecto-de-m-sobre-d." class="section level2">
+<h2>Efecto de M sobre D.</h2>
+<p>Este era el efecto que queríamos obtener y el cuál no podíamos estimar al no poder condicionar sobre U. Aquí es tan sencillo como ver su distribución a posteriori.</p>
+<pre class="r"><code>quantile(post$m)</code></pre>
+<pre><code>##          0%         25%         50%         75%        100% 
+## -0.14804300 -0.01706778  0.01080760  0.03813360  0.15027000</code></pre>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(post$m)) + 
+  labs(title = &quot;Efecto directo de M sobre D&quot;, 
+       x = &quot;m&quot;)</code></pre>
+<p><img src="/post/2022-02-05-pluralista_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<div id="efecto-de-b1-sobre-d" class="section level3">
+<h3>Efecto de B1 sobre D</h3>
+<p>Como ya sabíamos, al haber simulado los datos de forma que las relaciones entre las variables sean lineales, el efecto de B1 sobre D no es más que el efecto de B1 sobre M multiplicado por el efecto de M sobre D.</p>
+<p>Utilizando la distribución a posteriori.</p>
+<pre class="r"><code># Efecto de B1 sobre D 
+quantile( with(post,b*m) )</code></pre>
+<pre><code>##          0%         25%         50%         75%        100% 
+## -0.27728158 -0.03379382  0.02148739  0.07658919  0.30614657</code></pre>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(post$b * post$m))+
+  labs(title = &quot;Efecto de B1 sobre D&quot;, 
+       x = &quot;b1 x m&quot;)</code></pre>
+<p><img src="/post/2022-02-05-pluralista_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+</div>
+<div id="efecto-de-b1-sobre-d-simulando" class="section level3">
+<h3>Efecto de B1 sobre D, simulando</h3>
+<p>Tal y como dice en su curso, el efecto causal puede ser visto como hacer una intervención supuesto cierto el modelo causal.</p>
+<p>Simplemente utilizamos las posterioris obtenidas y vamos simulando , en primer lugar B1 = 0 y simulamos qué M se obtendría, y lo hacemos también para B1 = 1 y restamos para obtener el efecto causal, que coindice con <code>b * m</code></p>
+<pre class="r"><code># 
+
+# B1 = 0
+# B1 -&gt; M
+M_B1_0 &lt;- with( post , a1 + b*0 + k*0 )
+# M -&gt; D
+D_B1_0 &lt;- with( post , a2 + b*0 + m*M_B1_0 + k*0 )
+
+# now same but with B1 = 1
+M_B1_1 &lt;- with( post , a1 + b*1 + k*0 )
+D_B1_1 &lt;- with( post , a2 + b*0 + m*M_B1_1 + k*0 )
+
+# difference to get causal effect
+d_D_B1 &lt;- D_B1_1 - D_B1_0
+quantile(d_D_B1)</code></pre>
+<pre><code>##          0%         25%         50%         75%        100% 
+## -0.27728158 -0.03379382  0.02148739  0.07658919  0.30614657</code></pre>
+<p>Pues como dice el título , ser pluralista no está tan mal, puedes usar el DAG y el backdoor criterio para entender qué variables ha de tener en cuenta para estimar tu efecto causal, y a partir de ahí podrías usar el “full luxury bayesian” en situaciones más complicadas.</p>
+</div>
+</div>
