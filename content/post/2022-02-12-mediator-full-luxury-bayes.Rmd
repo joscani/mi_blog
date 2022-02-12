@@ -170,12 +170,12 @@ Creamos función para calcular el efecto de la intervención `y_do_x`
 get_total_effect <- function(x_value = 0) {
   n <- length(post$bx)
   with(post, {
-    # simulate z, y  for x=0
-    z_x0 <- rnorm(n, a1  , sigma)
+    # simulate z, y  for x= x_value
+    z_x0 <- rnorm(n, a1 + bx * x_value  , sigma)
     y_x0 <- rnorm(n, a2  + bz * z_x0 + bx * x_value , tau)
     
-    # simulate z,y for x=1
-    z_x1 <- rnorm(n, a1 + bx * 1  , sigma)
+    # simulate z,y for x= x_value +1 
+    z_x1 <- rnorm(n, a1 + bx * (x_value +1)  , sigma)
     y_x1 <- rnorm(n, a2  + bz * z_x1 + bx2 * (x_value + 1) , tau)
     
     
