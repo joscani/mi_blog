@@ -166,8 +166,11 @@ Así que el objetivo es dado nuestro modelo que incluye la variable z, simular l
 
 Creamos función para calcular el efecto de la intervención `y_do_x`
 
+
+
+
 ```{r}
-get_total_effect <- function(x_value = 0) {
+get_total_effect <- function(x_value = 0, incremento = 0.5) {
   n <- length(post$bx)
   with(post, {
     # simulate z, y  for x= x_value
@@ -175,19 +178,18 @@ get_total_effect <- function(x_value = 0) {
     y_x0 <- rnorm(n, a2  + bz * z_x0 + bx * x_value , tau)
     
     # simulate z,y for x= x_value +1 
-    z_x1 <- rnorm(n, a1 + bx * (x_value +1)  , sigma)
-    y_x1 <- rnorm(n, a2  + bz * z_x1 + bx2 * (x_value + 1) , tau)
+    z_x1 <- rnorm(n, a1 + bx * (x_value + incremento)  , sigma)
+    y_x1 <- rnorm(n, a2  + bz * z_x1 + bx2 * (x_value + incremento) , tau)
     
     
     # compute contrast
-    y_do_x <- y_x1 - y_x0
+    y_do_x <- (y_x1 - y_x0) / incremento
     return(y_do_x)
   })
   
 }
 
 ```
-
 
 Dado un valor de x, podemos calcular el efecto total
 
