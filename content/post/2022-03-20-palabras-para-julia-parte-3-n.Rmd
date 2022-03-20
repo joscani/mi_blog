@@ -234,7 +234,7 @@ savefig(myplot,"plurarlista_turing.png")
 ```
 
 
-![imagen](/post/2022-03-20-palabras-para-julia-parte-3-n_files/pluralista_turing.png)
+![imagen](/post/2022-03-20-palabras-para-julia-parte-3-n_files/plurarlista_turing.png)
 
 
 ## Reflexiones.
