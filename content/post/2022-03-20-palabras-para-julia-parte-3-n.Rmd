@@ -233,7 +233,7 @@ myplot = plot(flbi[[:a1, :a2, :b, :m, :σ₁, :σ₂]])
 savefig(myplot,"plurarlista_turing.png")
 ```
 
-![](images/plurarlista_turing-01.png)
+![imagen](/post/2021-01-11-cachitos-primera-parte_files/cachitos_2020.png)
 
 ## Reflexiones.
 
