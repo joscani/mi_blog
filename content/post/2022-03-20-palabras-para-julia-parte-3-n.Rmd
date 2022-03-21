@@ -16,9 +16,9 @@ topics: []
 
 Tengo una relación extraña con Julia, por un lado me gusta bastante y por otro me parece que aún le falta algo para que lo adopte de forma más seria. Quizá tenga que ver con mi forma de aprender (que seguro que no es óptima), en vez de irme a los tutoriales típicos, me voy directamente a ver cómo se hace algo que me interesa. En este caso hacer modelos bayesianos con Julia usando [Turing](https://turing.ml/stable/).
 
-Turing es una librería escrita en Julia para programación probabilística, podría considerarse como un competidor de [Stan](https://mc-stan.org/), aunque aún es una librería joven. Turing añade sólo una pequeña capa de programación probabilística, de forma que promete, por ejemplo, hacer modelos de redes neuronales dónde los pesos sigan una distribución.
+Turing es una librería escrita en Julia para programación probabilística, podría considerarse como un competidor de [Stan](https://mc-stan.org/), aunque todavía es una librería joven. Turing añade sólo una pequeña capa de programación probabilística, y promete cosas como  modelos de redes neuronales dónde los pesos sigan una distribución probabilística
 
-No me voy a meter en esos lares, yo soy más prosaico y por el momento sólo quiero ejemplificar como se ajustaría el modelo que cuento en [pluralista](https://muestrear-no-es-pecado.netlify.app/2022/02/06/pluralista/) con Turing.
+No me voy a meter en esos lares, yo soy más prosaico y por el momento sólo quiero ejemplificar con Turing el modelo que cuento en [pluralista](https://muestrear-no-es-pecado.netlify.app/2022/02/06/pluralista/).
 
 Recordemos que habías simulado unos datos tal que así.
 
@@ -39,12 +39,9 @@ g <- dagitty("dag{
 
 ```
 
-En la simulación se ha forzado que el efecto del número de hijos de la madre (M) sobre el número de hijos de la hija (D) sea nulo.
-
-Por tanto sabemos que el efecto de M sobre D es 0..
 
 
-```{r, echo = FALSE}
+```{r, echo = TRUE}
 set.seed(1908)
 N <- 1000 # número de pares, 1000 madres y 1000 hijas
 
@@ -59,7 +56,11 @@ B2 <- rbinom(N,size=1,prob=0.5) # 50% son las primogénitas
 D <- rnorm( N , 2  *B2 + U + 0 * M )
 ```
 
-El DAG era algo así. Dónde sabemos, por construcción, que el efecto de M sobre D es 0. En este dag para estimar el efecto de M sobre D, hace falta condicionar por U, pero al ser una variable de confusión no observada, no habría forma de estimarlo de la forma tradicional (a lo Pearl). La solución es estimar el DAG completo. Dónde hay dos variables dependientes, M Y D.
+En la simulación se ha forzado que el efecto del número de hijos de la madre (M) sobre el número de hijos de la hija (D) sea cero.
+
+
+El DAG era algo así. En este dag para estimar el efecto de M sobre D, hace falta condicionar por U, pero al ser una variable de confusión no observada, no habría forma de estimarlo de la forma tradicional (a lo Pearl).
+La solución es estimar el DAG completo.
 
 ```{r, echo = FALSE}
 coords <-  
@@ -77,9 +78,10 @@ ggdag(g) +
 
 ## Ajuste en Turing
 
-Recordemos que nuestra U es una variable que no tenemos, se podría asimilar a una variable con todos sus valores perdidos y cada uno de los valores perdidos es un parámetro a estimar.
+Recordemos que nuestra U es una variable que no tenemos, se podría asimilar a una variable con todos sus valores perdidos y cada uno de esos  valores perdidos es un parámetro a estimar.
 
-Librerías: Aparte de Turing, hace falta ReverseDiff (diferenciación automática) y Memoization para ajustar el modelo que tiene que estimar cada valor de U (unos 1000).
+__Librerías__ : Aparte de Turing, hace falta ReverseDiff (diferenciación automática) y alguna más. 
+
 
 ```julia
 using LinearAlgebra, Plots
@@ -117,11 +119,15 @@ julia> describe(pl)
 
 Nos construimos el modelo con Turing.
 
-Algunas cosas a comentar. \* El uso de filldist para crear el vector de U y que cada valor siga una Normal(0,1), \* El uso de `.+` para sumar un escalar como a1 con un vector. El uso del ".operacion" es habitual en julia para hacer broadcast.
+Algunas cosas a comentar. 
 
--   Uso de MvNormal al final. Esto lo he leído por ahí para que haga mejor el sampleo.
+- El uso de filldist para crear el vector de U y que cada valor siga una Normal(0,1).
 
--   Al igual que en Stan se tiene que escribir en cierto orden porque Turing no es declarativo.
+- `.+` para sumar un escalar como a1 con un vector. El uso del ".operacion" es habitual en julia para hacer broadcast.
+
+-  MvNormal al final. Esto lo he leído por ahí para que haga mejor el sampleo.
+
+- Al igual que en Stan se tiene que escribir en cierto orden (y si no no funciona bien) porque Turing no es declarativo.
 
 ```julia
 @model function pluralista(D, M, B1, B2)
@@ -160,7 +166,7 @@ Algunas cosas a comentar. \* El uso de filldist para crear el vector de U y que 
 end
 ```
 
-Si comparamos con el código en Stan (abajo del todo ) vemos que es muy parecido el código
+Comparando con el código del mismo modelo en Stan (al final del post) se observa que la sintaxis es parecida. 
 
 
 

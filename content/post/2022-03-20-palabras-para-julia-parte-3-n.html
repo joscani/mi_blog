@@ -18,17 +18,29 @@ topics: []
 
 
 <p>Tengo una relación extraña con Julia, por un lado me gusta bastante y por otro me parece que aún le falta algo para que lo adopte de forma más seria. Quizá tenga que ver con mi forma de aprender (que seguro que no es óptima), en vez de irme a los tutoriales típicos, me voy directamente a ver cómo se hace algo que me interesa. En este caso hacer modelos bayesianos con Julia usando <a href="https://turing.ml/stable/">Turing</a>.</p>
-<p>Turing es una librería escrita en Julia para programación probabilística, podría considerarse como un competidor de <a href="https://mc-stan.org/">Stan</a>, aunque aún es una librería joven. Turing añade sólo una pequeña capa de programación probabilística, de forma que promete, por ejemplo, hacer modelos de redes neuronales dónde los pesos sigan una distribución.</p>
-<p>No me voy a meter en esos lares, yo soy más prosaico y por el momento sólo quiero ejemplificar como se ajustaría el modelo que cuento en <a href="https://muestrear-no-es-pecado.netlify.app/2022/02/06/pluralista/">pluralista</a> con Turing.</p>
+<p>Turing es una librería escrita en Julia para programación probabilística, podría considerarse como un competidor de <a href="https://mc-stan.org/">Stan</a>, aunque todavía es una librería joven. Turing añade sólo una pequeña capa de programación probabilística, y promete cosas como modelos de redes neuronales dónde los pesos sigan una distribución probabilística</p>
+<p>No me voy a meter en esos lares, yo soy más prosaico y por el momento sólo quiero ejemplificar con Turing el modelo que cuento en <a href="https://muestrear-no-es-pecado.netlify.app/2022/02/06/pluralista/">pluralista</a>.</p>
 <p>Recordemos que habías simulado unos datos tal que así.</p>
-<p>En la simulación se ha forzado que el efecto del número de hijos de la madre (M) sobre el número de hijos de la hija (D) sea nulo.</p>
-<p>Por tanto sabemos que el efecto de M sobre D es 0..</p>
-<p>El DAG era algo así. Dónde sabemos, por construcción, que el efecto de M sobre D es 0. En este dag para estimar el efecto de M sobre D, hace falta condicionar por U, pero al ser una variable de confusión no observada, no habría forma de estimarlo de la forma tradicional (a lo Pearl). La solución es estimar el DAG completo. Dónde hay dos variables dependientes, M Y D.</p>
+<pre class="r"><code>set.seed(1908)
+N &lt;- 1000 # número de pares, 1000 madres y 1000 hijas
+
+
+U &lt;- rnorm(N,0,1) # Simulamos el confounder
+
+# orden de nacimiento y 
+B1 &lt;- rbinom(N,size=1,prob=0.5)  # 50% de madres nacieeron en primer lugar
+M &lt;- rnorm( N , 2 * B1 + U )
+
+B2 &lt;- rbinom(N,size=1,prob=0.5) # 50% son las primogénitas
+D &lt;- rnorm( N , 2  *B2 + U + 0 * M )</code></pre>
+<p>En la simulación se ha forzado que el efecto del número de hijos de la madre (M) sobre el número de hijos de la hija (D) sea cero.</p>
+<p>El DAG era algo así. En este dag para estimar el efecto de M sobre D, hace falta condicionar por U, pero al ser una variable de confusión no observada, no habría forma de estimarlo de la forma tradicional (a lo Pearl).
+La solución es estimar el DAG completo.</p>
 <p><img src="/post/2022-03-20-palabras-para-julia-parte-3-n_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
 <div id="ajuste-en-turing" class="section level2">
 <h2>Ajuste en Turing</h2>
-<p>Recordemos que nuestra U es una variable que no tenemos, se podría asimilar a una variable con todos sus valores perdidos y cada uno de los valores perdidos es un parámetro a estimar.</p>
-<p>Librerías: Aparte de Turing, hace falta ReverseDiff (diferenciación automática) y Memoization para ajustar el modelo que tiene que estimar cada valor de U (unos 1000).</p>
+<p>Recordemos que nuestra U es una variable que no tenemos, se podría asimilar a una variable con todos sus valores perdidos y cada uno de esos valores perdidos es un parámetro a estimar.</p>
+<p><strong>Librerías</strong> : Aparte de Turing, hace falta ReverseDiff (diferenciación automática) y alguna más.</p>
 <pre class="julia"><code>using LinearAlgebra, Plots
 using Turing
 using ReverseDiff, Memoization 
@@ -54,10 +66,12 @@ describe(pl)
    4 │ B2        0.487     0        0.0       1               0  Int64
 </code></pre>
 <p>Nos construimos el modelo con Turing.</p>
-<p>Algunas cosas a comentar. * El uso de filldist para crear el vector de U y que cada valor siga una Normal(0,1), * El uso de <code>.+</code> para sumar un escalar como a1 con un vector. El uso del “.operacion” es habitual en julia para hacer broadcast.</p>
+<p>Algunas cosas a comentar.</p>
 <ul>
-<li><p>Uso de MvNormal al final. Esto lo he leído por ahí para que haga mejor el sampleo.</p></li>
-<li><p>Al igual que en Stan se tiene que escribir en cierto orden porque Turing no es declarativo.</p></li>
+<li><p>El uso de filldist para crear el vector de U y que cada valor siga una Normal(0,1).</p></li>
+<li><p><code>.+</code> para sumar un escalar como a1 con un vector. El uso del “.operacion” es habitual en julia para hacer broadcast.</p></li>
+<li><p>MvNormal al final. Esto lo he leído por ahí para que haga mejor el sampleo.</p></li>
+<li><p>Al igual que en Stan se tiene que escribir en cierto orden (y si no no funciona bien) porque Turing no es declarativo.</p></li>
 </ul>
 <pre class="julia"><code>@model function pluralista(D, M, B1, B2)
 
@@ -93,7 +107,7 @@ describe(pl)
     D ~ MvNormal(mu2, σ₂ * I)
 
 end</code></pre>
-<p>Si comparamos con el código en Stan (abajo del todo ) vemos que es muy parecido el código</p>
+<p>Comparando con el código del mismo modelo en Stan (al final del post) se observa que la sintaxis es parecida.</p>
 </div>
 <div id="muestreo-de-la-posterior-en-turing" class="section level2">
 <h2>Muestreo de la posterior en Turing</h2>
