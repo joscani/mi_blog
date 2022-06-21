@@ -26,18 +26,18 @@ Bueno, dejando de lado las batallitas de final del siglo pasado y debido a que e
 Se lleva haciendo Investigación Operativa desde hace tiempo, véase [esto](https://es.wikipedia.org/wiki/George_Dantzig). Por otro lado creo que va a ser el próximo _hype_  por las señales que estoy viendo, la primera de ellas es el cambio de nombre de la materia, ahora estoy empezando escuchar __*Analítica prescriptiva*__ en vez de Investigación Operativa. Y como es norma en este mundillo, el cambio de nombre precede a la ¿burbuja?. 
 
 
-Pues vamos al grano, en esto de la investigación operativa se ha desarrollado mucho software para resolver este tipo de problemas, a partir de ahora los llamaremos _solvers_. Dentro de estos podemos destacar solvers comerciales como CPlex y Gurobi, pero también hay software libre como [GLPK](https://www.gnu.org/software/glpk/)dentro del proyecto GNU, o sin olvidarnos de la fundación  [COIN-OR](https://www.coin-or.org/) dónde se han desarrollado muchos _solvers__ de manera opensource.
+Pues vamos al grano, en esto de la investigación operativa se ha desarrollado mucho software para resolver este tipo de problemas, a partir de ahora los llamaremos _solvers_. Dentro de estos podemos destacar solvers comerciales como CPlex y Gurobi, pero también hay software libre como [GLPK](https://www.gnu.org/software/glpk/) dentro del proyecto GNU, o sin olvidarnos de la fundación  [COIN-OR](https://www.coin-or.org/) dónde se han desarrollado muchos _solvers_ de manera opensource.
 
 
 
-Dentro de nuestro mundillo y de nuestros 3 lenguajes favoritos (R, Julia y Python) hay librerías que permiten hacer de _API_ para los diferentes _solvers_, tanto los de software libre como los comerciales. Paso a enumerar 3 proyectos, uno para cada lenguaje  y pongo enlace.
+Dentro de nuestros 3 lenguajes favoritos (R, Julia y Python) hay librerías que permiten hacer de _API_ para los diferentes _solvers_, tanto los de software libre como los comerciales. Paso a enumerar 3 proyectos, uno para cada lenguaje  y pongo enlace.
 
 * R: [R Optimization Infrastructure](https://roi.r-forge.r-project.org/)
 * Julia: [JuMP](https://jump.dev/JuMP.jl/stable/)
 * Python: [Pyomo](http://www.pyomo.org/)
 
 
-En realidad, en principio uno podría decir que se trata sólo de sintaxis y que da igual cual uses pues al final todos utilizan los mismos solvers en el  _backend_ . No obstante hay problemas en los que la misma construcción del mismo para pasárselo al solver puede tardar bastante y según [esto](https://arxiv.org/pdf/1508.01982.pdf)  JuMP parece estar a la altura con respecto a los softwares comerciales como GAMS en la  generación del modelo y envío al solver.
+En realidad, en principio uno podría decir que se trata sólo de sintaxis y que da igual cual uses pues al final todos utilizan los mismos solvers en el  _backend_ . No obstante, hay problemas en los que la misma construcción del mismo para pasárselo al solver puede tardar bastante y, según [esto](https://arxiv.org/pdf/1508.01982.pdf),  JuMP parece estar a la altura con respecto a los softwares comerciales como GAMS en la  generación del modelo y envío al solver.
 
 ![](/post/2022-06-21-io-parte-1_files/Jump_benchmark.png)
 
