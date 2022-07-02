@@ -268,7 +268,7 @@ Guardamos la posteriori
 write( "cadena.jls", chain)
 ``` 
 
-Y ahora, cerramos julia y abrimos de nuevo.  Aqui he usado la función include para introduc
+Y ahora, cerramos julia y abrimos de nuevo. 
 
 
 ```julia
@@ -291,7 +291,7 @@ chain = read("cadena.jls", Chains)
 
 # Especificación del modelo (esto puede ir en otro fichero .jl)
 
-Si tengo en un fichero jl el código de @model, lo puedo incluir ahí. 
+# Si tengo en un fichero jl el código de @model, lo puedo incluir ahí. 
 
 
 # ruta = "especificacion_modelo.jl"
@@ -327,11 +327,21 @@ end
 
 
 
+
+
+```
+
+Y aqui viene la parte importante. En la que utilizamos el modelo guardado, que no es más que las  posterioris de los parámetros que hemos salvado en disco previamente.
+
+
+```julia
+
 ## predecimos la misma observación , fila 198 del dataset
 
 predict(mm_model_sin_sales(177, 9.3, 6.4 ), chain)
 
 ```
+
 
 ```bash
 Chains MCMC chain (2000×1×4 Array{Float64, 3}):
