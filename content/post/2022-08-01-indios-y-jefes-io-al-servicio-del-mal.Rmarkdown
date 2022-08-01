@@ -1,0 +1,600 @@
+---
+title: Indios y jefes, IO al servicio del mal. 
+author: jlcr
+date: '2022-08-01'
+slug: indios-y-jefes-io-al-servicio-del-mal
+categories:
+  - estadística
+tags:
+  - Investigación operativa
+description: ''
+topics: []
+---
+
+
+## Introducción
+
+Voy a poner un ejemplo de como utilizar solvers para investigación operativa dentro de R. 
+
+Tenemos la siguiente información:
+* Listado de códigos postales de España con la longitud y latitud del centroide del polígono.
+* Listado de códigos postales de la ubicación de las sedes de una empresa. 
+* En la empresa hay jefes e indios, no es necesario que haya un jefe por sede.
+
+Se quiere, para cada provincia de España
+
+* Asignar cada código postal de esa provincia a un empleado de la empres (jefe o indio). 
+* Un mismo código postal no puede estar asignado a más de un empleado.
+* En la medida de lo posible asignar a los empleados los códigos postales más cercanos al lugar de su sede.
+* A igualdad de distancia entre un código postal y una sede, se debería asignar ese código postal a un indio.
+* Ningún indio debe tener asignados menos códigos postales que ningún jefe.
+* Los jefes como **máximo** han de tener 7 códigos postales asignados.
+* Los indios como **mínimo** han de tener 3 códigos postales asignados.
+* No puede haber ningún empleado que esté "desasignado".
+
+
+
+Dados estos requisitos debería plantear como es la definición del problema, pero no tengo ganas de ponerme a escribir fórmulas en latex, así que en vez de eso voy a utilizar unos datos simulados  y directamente al código.. 
+
+
+## Carga de datos y crear datos ficticios.
+
+
+### Carga códigos postales
+
+Casualmente, tengo por mi pc un shapefile algo antiguo (de cuando está capa estaba en cartociudad) con la capa de códigos postales de España, la cual si se quiere actualizada vale un dinerillo. [correos](https://www.market.correos.es/es/product/capa-cartografica-de-codigos-postales), 6000 Euros la versión sin actualizaciones.. Bueno, si hacienda y correos somos todos me gustaría al menos poder utilizar esto actualizado sin que me cueste 6k. 
+
+Vamos a cargar la capa, obtener los centroides, pasar la geometría a longitud y latitud
+
+```{r}
+library(tidyverse)
+library(sf)
+```
+
+
+```{r}
+cod_postales_raw <- readRDS(here::here("data/cp_boundaries.rds")) %>%
+  select(-cp_num, -cp_2_num)
+
+head(cod_postales_raw)
+```
+
+Pintamos algunos códigos 
+
+```{r}
+plot(st_geometry(cod_postales_raw[1:2000, ]))
+```
+
+Para obtener los centroides, usamos la función  `st_centroid` y pasamos la capa de polígonos a una de puntos
+
+```{r}
+cod_postales_raw <- st_centroid(cod_postales_raw)
+head(cod_postales_raw)
+plot(st_geometry(cod_postales_raw[1:2000, ]), cex = 0.2)
+```
+
+Ahora extraemos de la geometría la longitud y latitud. Para eso hay que transformar la geometría. 
+
+
+```{r}
+
+cod_postales_raw <- cod_postales_raw %>%
+  st_transform("+proj=longlat +ellps=WGS84 +datum=WGS84")
+
+cod_postales <- cod_postales_raw %>%
+  mutate(
+    centroide_longitud = unlist(map(geometry, 1)),
+    centroide_latitud = unlist(map(geometry, 2))
+  ) %>%
+  st_drop_geometry() %>% # quitamos la geometría y nos quedamos solo con la longitud y latitud
+  rename(
+    cod_postal = cp,
+    cod_prov = cp_2
+  ) %>%
+  filter(!is.na(centroide_longitud)) # tenía un polígono con NAS
+
+head(cod_postales)
+```
+
+Por otro lado me interesa añadir el literal de provincia, tengo una tabla extraída del INE con la correspondencia entre cod_prov y el literal
+
+
+```{r}
+provincia <- read_csv(here::here("data/codprov.csv"))
+head(provincia)
+```
+
+
+Normalizo a mayúsculas y sin tildes y se lo pego a los códigos postales 
+
+
+```{r}
+provincia <- provincia %>%
+  mutate(provincia = toupper(stringi::stri_trans_general(LITERAL, "Latin-ASCII")))
+
+cod_postales <- cod_postales %>%
+  left_join(provincia %>%
+    select(
+      CODIGO,
+      provincia
+    ),
+  by = c("cod_prov" = "CODIGO")
+  )
+
+dim(cod_postales)
+
+head(cod_postales %>%
+  select(provincia, cod_prov, everything()))
+```
+
+### Datos ficticios de las sedes de las empresas
+
+
+Lo que voy a hacer es seleccionar aleatoriamente un número de códigos postales en cada provincia, que serán las sedes de la empresa. En cada provincia pongo al menos a un empleado de tipo = "jefe".  Luego, reparto de forma aleatoria entre los códigos postales que han sido elegidos como sedes otros 120 jefes y 480 indios. 
+
+
+```{r}
+
+set.seed(155)
+
+## En cada provincia nos quedamos con  un 6% de códigos postales
+
+sedes_alea <- cod_postales %>%
+  group_by(provincia) %>%
+  slice_sample(prop = 0.06)
+
+
+
+# en cada provincia al menos un jefe y resto de empleados de forma aleatoria, en las diferentes sedes elegidas
+
+personal <- bind_rows(
+  sedes_alea %>%
+    select(provincia, cod_postal) %>%
+    group_by(provincia) %>%
+    slice_sample(n = 1) %>%
+    ungroup() %>%
+    select(cod_postal) %>%
+    mutate(tipo = "jefe"),
+  tibble(
+    tipo = c(rep("jefe", 120), rep("indio", 360)),
+    cod_postal = sample(sedes_alea$cod_postal, size = 480, replace = TRUE)
+  )
+)
+```
+
+
+Creamos data set sedes 
+```{r}
+sedes <- personal %>%
+  left_join(sedes_alea)
+
+dim(sedes)
+
+sample_n(sedes, 7)
+```
+
+## IO al servicio del mal en GRANADA
+
+Como ejemplo, vamos a ver como sería para Granada
+
+
+```{r}
+cod_postales_granada <- cod_postales %>%
+  filter(provincia == "GRANADA") %>%
+  mutate(id = row_number())
+
+sedes_granada <- sedes %>%
+  filter(provincia == "GRANADA") %>%
+  arrange(desc(tipo)) %>%
+  mutate(id_sede = row_number())
+
+sedes_granada
+```
+
+Es importante haber ordenado por tipo , porque vamos a utilizar el mismo índice  `j` para empleados jefe y empleados indios.
+
+Ahora definimos:
+* `m` como el número de empleados en las sedes de Granada
+* `n` como el número de códigos postales a asignar en Granada
+* `n_sedes` como el número de sedes 
+* `njefes` como el número de jefes
+* `n_indios` como el número de indios
+
+
+```{r}
+
+m <- nrow(sedes_granada)
+n <- nrow(cod_postales_granada)
+n_sedes <- length(unique(sedes_granada$cod_postal))
+
+njefes <- sedes_granada %>%
+  filter(tipo == "jefe") %>%
+  count() %>%
+  pull(n)
+
+n_indios <- m - njefes
+```
+
+
+Necesitamos definir una función de distancia entre los códigos postales a asignar y las sedes. Para eso usamos la distancia Haversine que está implementada en la librería  `geosphere`. Y aquí ya introducimos uno de los requerimientos. Básicamente aumentamos la distancia un 10% si el empleado es un jefe, de forma que sea peor asignarle ese código postal al jefe en términos de minimizar el total de distancias. 
+
+
+```{r}
+
+
+transportcost_granada <- function(i, j) {
+  cliente <- cod_postales_granada[i, ]
+  comercial <- sedes_granada[j, ]
+  distancia <-
+    geosphere::distHaversine(
+      c(cliente$centroide_longitud, cliente$centroide_latitud),
+      c(comercial$centroide_longitud, comercial$centroide_latitud)
+    )
+
+  if (comercial[, "tipo"] == "jefe") {
+    distancia <- distancia * 1.1
+  }
+
+  return(distancia / 1000) # devolvemos la disancia en km
+}
+
+# distancia entre sede 1 y empleado 3
+transportcost_granada(1, 3)
+```
+
+
+Pintamos los códigos postales y las sedes. Los granadinos reconoceremos la forma de la provincia.
+
+
+```{r}
+p <-
+  ggplot(
+    cod_postales_granada,
+    aes(centroide_longitud, centroide_latitud)
+  ) +
+  geom_point(size = rel(2), shape = 4) +
+  geom_point(
+    data = sedes_granada,
+    size = rel(3),
+    color = "darkorange"
+  ) +
+  theme(
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    panel.grid = element_blank()
+  )
+p + ggtitle("Sin asignar")
+```
+
+## Optimización
+
+Para optimizar el problema vamos a usar la librería `ompr` que permite plantear el problema de optimización lineal entera de forma sencilla, y se conecta a la librería `ROI` que es la que al final llama al solver. Como solver vamos a utilizar `glpk` que es software libre y lo suficientemente bueno para este ejemplo. 
+
+
+
+```{r, message=FALSE, warning=FALSE}
+library(ompr)
+library(ompr.roi)
+library(ROI.plugin.glpk)
+library(patchwork) # pa unir los ggplots resultantes
+```
+
+Definimos el modelo 
+
+```{r}
+mip_model_granada <- MIPModel() %>%
+  # variable indicadora que indica si una tienda i se asigna a comercial j
+  add_variable(x[i, j], i = 1:n, j = 1:m, type = "binary") %>%
+  # Minimizar el objetivo de distancia
+  set_objective(sum_over(transportcost_granada(i, j) * x[i, j], i = 1:n, j = 1:m), "min") %>%
+  # cada tienda (código postal) solo debe ir a un comerciial. el comercial puede atender varios
+  add_constraint(sum_over(x[i, j], j = 1:m) == 1, i = 1:n) %>%
+  # todo el mundo tiene que atender al minimo a una tienda
+  add_constraint(sum_over(x[i, j], i = 1:n) >= 1, j = 1:m) %>%
+  #   Los jefes curran menos, como máximo 7 tiendas
+  add_constraint(sum_over(x[i, j], i = 1:n) <= 7, j = 1:njefes) %>%
+  #
+  # # Los indios al menos atienden a 3 tiendas
+  add_constraint(sum_over(x[i, j], i = 1:n) >= 3, j = (njefes + 1):m) %>%
+  # para no sobrecargar mucho a los indios, les pongo un máximo que sea 1.5 veces el núemro de tiendas entre total currantes (jefes + indios)
+  add_constraint(sum_over(x[i, j], i = 1:n) <= round(1.5 * n / m), j = (njefes + 1):m) %>%
+  add_constraint(sum_over(x[i, j], i = 1:n) >= sum_over(x[i, k], i = 1:n), j = (njefes + 1):m, k = 1:njefes)
+```
+
+
+Algunas aclaraciones de la sintaxis anterior. 
+
+* Nuestra variable auxilizar es $X_{i,j}$ dónde la i son los códigos postales y la j cada empleado.
+* Se trata de minimizar la suma total de distancias cuando se asigna un código postal a un empleado, para todos los códigos postales y todos los empleados.
+* La restricción `add_constraint(sum_over(x[i, j], j = 1:m) == 1  , i = 1:n) ` si nos fijamos en el sum_over significa  sumar en j (empleados) para cada código postal (i)  y que esa suma valga 1. Es decir, para cada código postal (i) sólo se permite que sea asignado a un empleado
+* `add_constraint(sum_over(x[i, j], i = 1:n) >= 1  , j = 1:m)`  Que para cada empleado (j) la suma de todos los códigos postales que se le asignen sea mayor o igual que 1. Vamos que no se quede ninguno ocioso. 
+* ` add_constraint(sum_over( x[i,j], i = 1:n)  <= 7, j = 1:njefes)`  por eso ordeanmos por tipo para que el índice 1:njefes corresponda a los empleados jefes, esta restricción asegura que a un jefe no se le asignen más de 7 códigos postales. 
+
+* `add_constraint(sum_over( x[i,j], i = 1:n)  >=  3 , j = (njefes +1):m)` Mínimo 3 códigos postales para los indios.
+* `add_constraint(sum_over( x[i,j], i = 1:n)  <=  round(1.5 * n/m) , j = (njefes +1):m)` Esta restricción intenta equilibrar el número de asignaciones para los indios, de forma que como mucho a un empleado tenga 1.5 veces la media de códigos postales por empleado. 
+
+* `  add_constraint(sum_over( x[i,j], i = 1:n)  >=  sum_over( x[i,k], i = 1:n) , j = (njefes +1):m, k = 1:njefes) ` En esta restricción es dónde aseguramos que ningún empleado tenga menos asignaciones que ningún jefe, por eso se ha usado el índice k. 
+
+Pues el problema tiene 2200 variables (todas binarias) y 257 restricciones.
+
+```{r}
+mip_model_granada
+```
+
+Resolvemos con glpk
+
+```{r}
+result_granada <- solve_model(mip_model_granada, with_ROI(solver = "glpk", verbose = TRUE))
+```
+
+```{r}
+result_granada
+```
+
+Y ahora procedemos a ver las asignaciones. Para eso utilizamos la función `get_solution` que nos va a devolver la solución obtenida para nuestra variable $X_{i,j}$
+
+```{r}
+matching <- result_granada %>%
+  get_solution(x[i, j]) %>%
+  select(i, j, value) %>%
+  filter(value > 0) # nons quedamos con las asignaciones
+
+matching
+```
+
+Ahora vemos cuántas asignaciones tiene cada empleado y pintamos los resultados 
+
+
+```{r}
+asignaciones <- matching %>%
+  group_by(j) %>%
+  summarise(asignaciones = sum(value)) %>%
+  arrange(desc(asignaciones)) %>%
+  left_join(sedes_granada, by = c("j" = "id_sede"))
+
+asignaciones
+```
+
+
+```{r, fig.width=4, fig.height=12}
+
+plot_assignment <- matching %>%
+  inner_join(cod_postales_granada, by = c("i" = "id")) %>%
+  inner_join(sedes_granada, by = c("j" = "id_sede"), suffix = c("_clientes", "_comerciales"))
+
+
+
+
+
+p_jefes <- p +
+  geom_segment(
+    data = plot_assignment %>%
+      filter(tipo == "jefe"),
+    aes(
+      x = centroide_longitud_comerciales,
+      y = centroide_latitud_comerciales,
+      xend = centroide_longitud_clientes,
+      yend = centroide_latitud_clientes
+    )
+  ) +
+  ggtitle(paste0("Asignaciones para los jefes"))
+
+
+p_indios <- p +
+  geom_segment(
+    data = plot_assignment %>%
+      filter(tipo == "indio"),
+    aes(
+      x = centroide_longitud_comerciales,
+      y = centroide_latitud_comerciales,
+      xend = centroide_longitud_clientes,
+      yend = centroide_latitud_clientes
+    )
+  ) +
+  ggtitle(paste0("Asignaciones para los indios"))
+
+
+p_or <- p +
+  labs(
+    title = "sin asignar",
+    subtitle = "Granada"
+  )
+p_final <- p_or / p_jefes / p_indios
+
+p_final
+```
+
+## IO al servicio del mal eligiendo provincia
+
+Creo función (francamente mejorable y modularizable) para poder elegir provincia o provincias
+
+```{r}
+get_asignaciones_x_provincia <- function(cod_postales = cod_postales, sedes = sedes,
+                                         provincia_sel = "MADRID", plot = TRUE, ...) {
+  cod_postales_filt <- cod_postales %>%
+    filter(provincia %in% provincia_sel) %>%
+    mutate(id = row_number())
+
+  sedes_filt <- sedes %>%
+    filter(provincia %in% provincia_sel) %>%
+    arrange(desc(tipo)) %>%
+    mutate(id_sede = row_number())
+
+  m <- nrow(sedes_filt)
+  n <- nrow(cod_postales_filt)
+  n_sedes <- length(unique(sedes_filt$cod_postal))
+
+  njefes <- sedes_filt %>%
+    filter(tipo == "jefe") %>%
+    count() %>%
+    pull(n)
+
+  n_indios <- m - njefes
+
+  transportcost <- function(i, j) {
+    cliente <- cod_postales_filt[i, ]
+    comercial <- sedes_filt[j, ]
+    distancia <- geosphere::distHaversine(
+      c(cliente$centroide_longitud, cliente$centroide_latitud),
+      c(comercial$centroide_longitud, comercial$centroide_latitud)
+    )
+
+    if (comercial[, "tipo"] == "jefe") distancia <- distancia * 1.1
+
+    return(distancia / 1000)
+  }
+
+
+  p <- ggplot(cod_postales_filt, aes(centroide_longitud, centroide_latitud)) +
+    geom_point(size = rel(2), shape = 4) +
+    geom_point(data = sedes_filt, size = rel(3), color = "darkorange") +
+    # scale_x_continuous(limits = c(0, grid_size+1)) +
+    # scale_y_continuous(limits = c(0, grid_size+1)) +
+    theme(
+      axis.title = element_blank(),
+      axis.ticks = element_blank(),
+      axis.text = element_blank(), panel.grid = element_blank()
+    )
+
+  mip_model <- MIPModel() %>%
+    # variable indicadora que indica si una tienda i se asigna a comercial j
+    add_variable(x[i, j], i = 1:n, j = 1:m, type = "binary") %>%
+    # Minimizar el objetivo de distancia
+    set_objective(sum_over(transportcost(i, j) * x[i, j], i = 1:n, j = 1:m), "min") %>%
+    # cada tienda (código postal) solo debe ir a un comerciial. el comercial puede atender varios
+    add_constraint(sum_over(x[i, j], j = 1:m) == 1, i = 1:n) %>%
+    # todo el mundo tiene que atender al minimo a una tienda
+    add_constraint(sum_over(x[i, j], i = 1:n) >= 1, j = 1:m) %>%
+    # %>%
+
+    #   Los jefes curran menos, como máximo 7 tiendas
+    add_constraint(sum_over(x[i, j], i = 1:n) <= 7, j = 1:njefes) %>%
+    #
+    # # Los indios al menos atienden a 3 tiendas
+    add_constraint(sum_over(x[i, j], i = 1:n) >= 3, j = (njefes + 1):m) %>%
+    # para no sobrecargar mucho a los indios, les pongo un máximo que sea 1.5 veces el núemro de tiendas entre total currantes (jefes + indios)
+    add_constraint(sum_over(x[i, j], i = 1:n) <= round(1.5 * n / m), j = (njefes + 1):m) %>%
+    add_constraint(sum_over(x[i, j], i = 1:n) >= sum_over(x[i, k], i = 1:n), j = (njefes + 1):m, k = 1:njefes)
+
+
+  result2 <- solve_model(mip_model, with_ROI(solver = "glpk", verbose = TRUE))
+
+
+  matching <- result2 %>%
+    get_solution(x[i, j]) %>%
+    select(i, j, value) %>%
+    filter(value > 0)
+
+
+
+  asignaciones <- matching %>%
+    group_by(j) %>%
+    summarise(asignaciones = sum(value)) %>%
+    arrange(desc(asignaciones)) %>%
+    left_join(sedes_filt, by = c("j" = "id_sede"))
+
+
+  plot_assignment <- matching %>%
+    inner_join(cod_postales_filt, by = c("i" = "id")) %>%
+    inner_join(sedes_filt, by = c("j" = "id_sede"), suffix = c("_clientes", "_comerciales"))
+
+
+
+  p_jefes <- p +
+    geom_segment(
+      data = plot_assignment %>%
+        filter(tipo == "jefe"),
+      aes(
+        x = centroide_longitud_comerciales,
+        y = centroide_latitud_comerciales,
+        xend = centroide_longitud_clientes,
+        yend = centroide_latitud_clientes
+      )
+    ) +
+    ggtitle(paste0("Asignaciones para los jefes"))
+
+
+  p_indios <- p +
+    geom_segment(
+      data = plot_assignment %>%
+        filter(tipo == "indio"),
+      aes(
+        x = centroide_longitud_comerciales,
+        y = centroide_latitud_comerciales,
+        xend = centroide_longitud_clientes,
+        yend = centroide_latitud_clientes
+      )
+    ) +
+    ggtitle(paste0("Asignaciones para los indios"))
+
+  subtitulo <- reduce(provincia_sel, function(x, y) paste(x, y, sep = "-"))
+  p_or <- p +
+    labs(
+      title = "sin asignar",
+      subtitle = subtitulo
+    )
+  p_final <- p_or / p_jefes / p_indios
+
+  if (plot) print(p_final)
+
+  return(list(
+    comerciales = sedes_filt,
+    cod_postales = cod_postales_filt,
+    matching = matching, tot_asignaciones = asignaciones, plot_final = p_final
+  ))
+}
+```
+
+Y veamos algunos ejemplos. 
+
+### MADRID
+
+```{r, fig.width=4, fig.height=12}
+madrid <- get_asignaciones_x_provincia(cod_postales, sedes, provincia_sel = "MADRID")
+```
+
+Podemos ver cuántos códigos postales le han tocado a cada empleado. 
+
+Se ve que se cumplen las restricciones. Seguramente para ser más equitativo habría que tocar algo a mano, para que a los empleados indios de la misma sede se repartan mejor los códigos postales. pero como primera aproximación no está mal
+
+```{r}
+madrid$tot_asignaciones %>% 
+  arrange(cod_postal)
+```
+
+
+Podemos ver el detalle, por ejemplo qué códigos postales le toca al empleado j=4
+
+```{r}
+madrid_asignaciones <-  madrid$tot_asignaciones  %>% 
+  left_join(madrid$matching, by = "j") %>% 
+  left_join(madrid$cod_postales, by = c("i" = "id"), suffix = c("","_tienda")) 
+
+madrid_asignaciones %>% 
+  filter(j==4) %>% 
+  select(tipo ,j, i, cod_postal, cod_postal_tienda)
+
+```
+
+### Barcelona
+```{r, fig.width=4, fig.height=12}
+barcelona <- get_asignaciones_x_provincia(cod_postales, sedes, provincia_sel ="BARCELONA")
+```
+
+
+### Sevilla
+
+```{r, fig.width=4, fig.height=12}
+sevilla <- get_asignaciones_x_provincia(cod_postales, sedes, provincia_sel = "SEVILLA")
+```
+
+
+### Granada y Málaga juntas
+
+```{r, fig.width=4, fig.height=12}
+granada_malaga <- get_asignaciones_x_provincia(cod_postales, sedes, provincia_sel = c("GRANADA","MALAGA"))
+```
+
+
+Y hasta aquí ha llegado el uso de la IO para el mal. Feliz verano !!
