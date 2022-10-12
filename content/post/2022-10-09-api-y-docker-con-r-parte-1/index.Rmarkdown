@@ -1,0 +1,449 @@
+---
+title: Api y docker con R. parte 1
+author: ''
+date: '2022-10-12'
+categories:
+  - docker
+  - R
+tags:
+  - api
+  - docker
+  - R
+slug: api-y-docker-con-r-parte-1
+---
+
+
+Todo el mundo anda haciendo apis para poner modelos en producción, y oye, está bien. Si además lo complementas con dockerizarlo para tener un entorno controlado y que te valga para ponerlo en cualquier sitio dónde esté docker instalado pues mejor. 
+
+Aquí voy a contar un ejemplo de como se puede hacer con R usando `plumber` y docker, en siguentes post contaré como hacerlo con `vetiver` que es una librería que está para R y Python que tiene algún extra, como versionado de modelos y demás. 
+
+
+Lo primero de todo es trabajar en un proyecto nuevo y usar [`renv`](https://rstudio.github.io/renv/articles/renv.html). renv es para gestionar _entornos_ de R, ojo que también funciona bien si tienes que mezclar R y python.  Tiene cosas interesantes como descubrir las librerías que usas en tu proyecto y aún mejor, si estas librerías ya las tienes instaladas pues te crea enlaces simbólicos a dónde están y te permite ahorrar un montón de espacio, que al menos yo, no he conseguido ver cómo hacer eso con `conda`. 
+
+
+## Objetivo
+
+Mi objetivo es ver cómo pondría un modelo bayesiano ajustado  con [`brms`](https://github.com/paul-buerkner/brms) para que me devuelva predicciones puntuales y las posterioris en un entorno de producción. 
+
+
+## Entrenando modelo
+
+Para eso voy a usar datos de un [antiguo post](https://muestrear-no-es-pecado.netlify.app/2021/06/04/big-data-para-pobres-iii-bayesiano/). 
+
+Una vez que estemos en ese nuevo proyecto, ajustamos y guardamos un modelo . 
+
+
+
+```{r}
+library(tidyverse)
+library(brms)
+library(cmdstanr)
+
+## Using all cores. 12 in my machine, y que haga las cadenas en paralelo
+options(mc.cores = parallel::detectCores())
+set_cmdstan_path("~/cmdstan/")
+
+train <- read_csv(here::here("data/train_local.csv"))
+
+# guiña a librería antigua
+car::some(train)
+
+```
+
+Ajustamos un modelo bayesiano con efectos aleatorios y usando la columna `n` como pesos de las filas. (leer el post dónde usé estos datos para saber más)
+
+```{r, eval = FALSE}
+train <- train %>% 
+    mutate(target1 = as_factor(ifelse(segmento == "Best", "Best", "Other")))
+
+
+formula <- brmsformula(
+    target1| resp_weights(n)  ~ (1 | edad_cat) + (1 | valor_cliente) + (1 | tipo)
+    )
+
+mod <- brm(
+    formula,
+     family = "bernoulli", data = train, 
+    iter = 4000, warmup = 1000, cores = 4, chains = 4,
+    seed = 10,
+    backend = "cmdstanr", 
+     refresh = 0) # refresh 0 qu eno quiero que se me llene el post de los output de las cadenas mcm
+
+saveRDS(mod, here::here("brms_model.rds"))
+
+```
+
+
+
+## Comprobamos que nuestro modelo funciona 
+
+
+
+
+```{r}
+library(tidybayes)
+
+mod_reload <- readRDS(here::here("brms_model.rds"))
+ 
+# 
+
+test <-  read_csv(here::here("data/test_local.csv"))
+
+# estimacion puntual
+predict(mod_reload, head(test))
+
+# full posterior
+# para 6 filas guarda los valores obtenidos en las 3000 iteraciones de cada cadena
+# 3000 * 4 * 6 = 72000 valores 
+
+posterior_pred <- add_epred_draws(head(test), mod_reload) 
+
+head(posterior_pred )
+dim(posterior_pred)
+
+
+
+
+ 
+```
+
+Para la primer fila podemos tener la distribución a posteriori 
+
+
+```{r}
+posterior_pred %>% 
+  filter(.row == 1) %>% 
+  ggplot(aes(x=.epred)) +
+  geom_density() 
+```
+
+
+
+Pues listo, ya tenemos el modelo entrenado y guardado, ahora sólo queda escribir el código para la api y el Dockerfile..
+
+## Creando el plumber.R
+
+Una cosa importante, si hemos usado `renv` es escribir el fichero con las dependencias que usamos.  Eso se hace con `renv::snapshot()`  y se crea un fichero dónde están descritas las dependencias  versionadas de nuestro proyecto. 
+
+Pero quizá para el docker no necesitemos todas, en este caso, partiendo del fichero anterior nos creamos otro con sólo las dependencias necesarias.  Yo lo he llamado `vetiver_renv.lock` porque empecé trasteando con vetiver y soy demasiado vago como para cambiar ahora el nombre.  El contenido del fichero es 
+
+`vetiver_renv.lock`
+
+```
+{
+  "R": {
+    "Version": "4.2.1",
+    "Repositories": [
+      {
+        "Name": "binarios",
+        "URL": "https://packagemanager.rstudio.com/all/latest"
+      },
+      {
+        "Name": "ropenspain",
+        "URL": "https://ropenspain.r-universe.dev"
+      }
+    ]
+  },
+  "Packages": {
+    "plumber": {
+      "Package": "plumber",
+      "Version": "1.2.1",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "8b65a7a00ef8edc5ddc6fabf0aff1194",
+      "Requirements": [
+        "R6",
+        "crayon",
+        "ellipsis",
+        "httpuv",
+        "jsonlite",
+        "lifecycle",
+        "magrittr",
+        "mime",
+        "promises",
+        "rlang",
+        "sodium",
+        "stringi",
+        "swagger",
+        "webutils"
+      ]
+    },
+    "brms": {
+      "Package": "brms",
+      "Version": "2.18.0",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "afcb0d871e1759b68b29eb6affd37a10",
+      "Requirements": [
+        "Matrix",
+        "Rcpp",
+        "abind",
+        "backports",
+        "bayesplot",
+        "bridgesampling",
+        "coda",
+        "future",
+        "ggplot2",
+        "glue",
+        "loo",
+        "matrixStats",
+        "mgcv",
+        "nleqslv",
+        "nlme",
+        "posterior",
+        "rstan",
+        "rstantools",
+        "shinystan"
+      ]
+    },
+    "tidybayes": {
+      "Package": "tidybayes",
+      "Version": "3.0.2",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "d501501261b724f35ec9f2b80f4421b5",
+      "Requirements": [
+        "arrayhelpers",
+        "coda",
+        "dplyr",
+        "ggdist",
+        "ggplot2",
+        "magrittr",
+        "posterior",
+        "rlang",
+        "tibble",
+        "tidyr",
+        "tidyselect",
+        "vctrs",
+        "withr"
+      ]
+    }
+  }
+}
+
+```
+
+Cómo veis también he añadido la librería tidybayes, porque me va a resultar útil para sacar la posteriori de las predicciones de los nuevos datos. 
+
+Creamos el fichero `plumber.R` que no es más que decir cómo se va a predecir y crear un par de endpoints que permiten tanto obtener estimaciones puntuales como la full posterior. 
+ Con la librería `plumber` se hace fácil sin más que usar decoradores.
+ 
+ Fichero `plumber.R` 
+ 
+ 
+```{r, eval = FALSE}
+
+library(brms)
+library(plumber)
+library(tidybayes)
+
+brms_model <- readRDS("brms_model.rds")
+
+
+#* @apiTitle brms predict Api
+#* @apiDescription Endpoints for working with brms model
+
+## ---- filter-logger
+#* Log some information about the incoming request
+#* @filter logger
+function(req){
+    cat(as.character(Sys.time()), "-",
+        req$REQUEST_METHOD, req$PATH_INFO, "-",
+        req$HTTP_USER_AGENT, "@", req$REMOTE_ADDR, "\n")
+    forward()
+}
+
+## ---- post-data
+#* Submit data and get a prediction in return
+#* @post /predict
+function(req, res) {
+    data <- tryCatch(jsonlite::parse_json(req$postBody, simplifyVector = TRUE),
+                     error = function(e) NULL)
+    if (is.null(data)) {
+        res$status <- 400
+        return(list(error = "No data submitted"))
+    }
+    
+    predict(brms_model, data) |>
+        as.data.frame()
+}
+
+
+#* @post /full_posterior
+function(req, res) {
+    data <- tryCatch(jsonlite::parse_json(req$postBody, simplifyVector = TRUE),
+                     error = function(e) NULL)
+    if (is.null(data)) {
+        res$status <- 400
+        return(list(error = "No data submitted"))
+    }
+    
+    add_epred_draws(data, brms_model) 
+        
+}
+
+
+```
+
+No tiene mucho misterio, los endpoint se crean usando 
+
+```
+#* @post  /nombre_endpoing
+```
+
+y creando una función que va a tomar los datos que le pasemos en formato json a la api, los pasa a data.frame y usa el modelo previamente cargado para obtener las estimaciones puntuales en un caso y la full posterior (con `add_epred_draws`) en el otro. 
+
+
+
+
+
+
+
+## Creamos el docker 
+
+Iba a contar lo que es docker, pero mejor lo miráis en su [web](https://www.docker.com/). Sólo quedarnos con la idea que es como tener una máquina virtual que puedo usar en otro sitio, pero es mucho más ligera y puede usar cosas del sistema anfitrión e interactuar con él.   
+
+Para crear nuestra _imagen_ docker tenemos que crear un fichero que se llame `Dockerfile` dónde vamos a ir diciéndole como cree nuestra máquina virtual.
+
+Es importante que estén los ficheros anteriores, el modelo salvado , el plumber.R y el fichero .lock en las rutas correctas dónde los busca el Dockerfile, en mi caso, lo he puesto todo en el mismo sitio. 
+
+
+Contendido del Dockerfile
+
+```
+# Docker file para modelo brms
+
+FROM rocker/r-ver:4.2.1
+ENV RENV_CONFIG_REPOS_OVERRIDE https://packagemanager.rstudio.com/cran/latest
+
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
+  default-jdk \
+  libcurl4-openssl-dev \
+  libicu-dev \
+  libsodium-dev \
+  libssl-dev \
+  make \
+  zlib1g-dev \
+  libxml2-dev \
+  libglpk-dev \
+  && apt-get clean
+
+
+COPY vetiver_renv.lock renv.lock
+RUN Rscript -e "install.packages('renv')"
+RUN Rscript -e "renv::restore()"
+
+## Copio el modelo y el fichero de la api
+COPY brms_model.rds /opt/ml/brms_model.rds
+COPY plumber.R /opt/ml/plumber.R
+
+EXPOSE 8081
+ENTRYPOINT ["R", "-e", "pr <- plumber::plumb('/opt/ml/plumber.R'); pr$run(host = '0.0.0.0', port = 8081)"]
+
+
+```
+
+Importante que el puerto que se exponga con `EXPOSE` sea el mismo que usa el plumber, en este caso el 8081. 
+
+
+Ahora para construir la imagen docker y ejecutarla
+
+
+```
+docker build -t mi_modelo_brms .
+
+```
+
+Y despues de un rato podemos ejecutarlo mapeando el puerto 
+
+```
+nohup docker container run --rm -p 8081:8081 mi_modelo_brms & 
+```
+
+
+## ¿Funciona?
+
+Podemos usar curl, python, php o cualquier otra cosa para mandar peticiones a la api y que nos devuelva predicciones, con R sería algo así. 
+
+
+```{r}
+test %>% 
+    head(2) 
+
+base_url <- "http://0.0.0.0:8081"
+
+api_res <- httr::POST(url = paste0(base_url, "/predict"),
+                      body = head(test),
+                      encode = "json")
+predicted_values <- httr::content(api_res, as = "text", encoding = "UTF-8")
+
+jsonlite::fromJSON(predicted_values)
+```
+
+
+```{r}
+api_res2 <- httr::POST(url = paste0(base_url, "/full_posterior"),
+                      body = head(test,1),
+                      encode = "json")
+posterior_values <- httr::content(api_res2, as = "text", encoding = "UTF-8")
+
+
+jsonlite::fromJSON(posterior_values)  %>% 
+  head(100)
+
+```
+
+Seguramente usar una api para  obtener la posteriori que tiene tantos valores para cada dato no sea lo más eficiente, porque lo devuelve en formato json y luego hay que convertirlo a data.frame, pero funciona. 
+
+
+## Salvar docker en un tar.gz
+
+Si no tenemos un sitio estilo docker hub dónde registrar nuestros docker o por cualquier otra causa, podemos usar `docker save` para generar un fichero comprimido y `docker load` para importarlo. 
+
+Sería algo así como 
+
+
+```bash 
+
+docker save mi_modelo_brms | gzip > mi_modelo_brms_docker.tar.gz
+
+``` 
+
+Copiar ese tar.gz a dónde toque
+
+```bash
+docker load < mi_modelo_brms_docker.tar.gz
+```
+
+
+
+
+## Adelanto con vetiver
+
+Con la librería vetiver se simplifica todo este proceso, puesto que crea por ti el plumber.R y el dockerfile y tiene movidas para guardar la monitorización del modelo y demás.  Está tanto para R como para python. En R soporta los modelos que estén en `tidymodels` y en python soporta `scikit-learn`, `statmodels`, `xgboost` y creo que también `pytorch` 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
