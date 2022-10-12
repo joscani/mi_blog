@@ -1,3 +1,1 @@
-{{ .Page.hugo.Generator }} <!-- deprecated -->
-{{ $.hugo.Generator }} <!-- okay -->
-{{ hugo.Generator }} <!-- okay -->
+{{ if eq (getenv "HUGO_BLOGDOWN_POST_RELREF") "true" }}{{ .Page.RelPermalink }}{{ else }}{{ .Page.Permalink }}{{ end }}
