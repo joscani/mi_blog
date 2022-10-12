@@ -116,16 +116,16 @@ car::some(train)
 ## # A tibble: 10 × 5
 ##    segmento tipo  valor_cliente edad_cat     n
 ##    <chr>    <chr>         <dbl> <chr>    <dbl>
-##  1 No_way   C                 2 <21         26
-##  2 No_way   B                 4 40-60      583
-##  3 Best     SF                7 40-60        8
-##  4 Rec      B                 4 41-50      220
-##  5 Neut     SF                7 >60          8
-##  6 No_way   SF                1 21- 40    2161
-##  7 No_way   B                 2 21- 40     400
-##  8 Best     C                 6 >60       1839
-##  9 Best     SF                1 40-60      168
-## 10 No_way   C                 2 >60       2262
+##  1 Rec      SM                2 21- 40       4
+##  2 Best     SM                1 41-50      475
+##  3 Best     C                 4 >60       2807
+##  4 No_way   C                 1 41-50      356
+##  5 No_way   B                 5 40-60      221
+##  6 Rec      SF                2 >60        152
+##  7 Rec      B                 4 40-60      194
+##  8 Best     C                 5 41-50     4934
+##  9 No_way   B                 3 41-50     1064
+## 10 No_way   SF                8 41-50       29
 ```
 
 Ajustamos un modelo bayesiano con efectos aleatorios y usando la columna `n` como pesos de las filas. (leer el post dónde usé estos datos para saber más)
@@ -202,13 +202,13 @@ predict(mod_reload, head(test))
 ```
 
 ```
-##       Estimate Est.Error Q2.5 Q97.5
-## [1,] 0.2333333 0.4229702    0     1
-## [2,] 0.1381667 0.3450892    0     1
-## [3,] 0.1577500 0.3645216    0     1
-## [4,] 0.1319167 0.3384142    0     1
-## [5,] 0.1201667 0.3251699    0     1
-## [6,] 0.0690000 0.2534647    0     1
+##        Estimate Est.Error Q2.5 Q97.5
+## [1,] 0.23216667 0.4222324    0     1
+## [2,] 0.13233333 0.3388669    0     1
+## [3,] 0.16075000 0.3673155    0     1
+## [4,] 0.13825000 0.3451766    0     1
+## [5,] 0.12716667 0.3331735    0     1
+## [6,] 0.07333333 0.2606937    0     1
 ```
 
 ```r
@@ -254,7 +254,7 @@ posterior_pred %>%
   geom_density() 
 ```
 
-<img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-4-1.png" width="672" />
+<img src="/post/2022-10-09-api-y-docker-con-r-parte-1_files/figure-html/unnamed-chunk-4-1.png" width="672" />
 
 
 
@@ -530,12 +530,12 @@ jsonlite::fromJSON(predicted_values)
 
 ```
 ##   Estimate Est.Error Q2.5 Q97.5
-## 1   0.2301    0.4209    0     1
-## 2   0.1318    0.3383    0     1
-## 3   0.1614    0.3679    0     1
-## 4   0.1349    0.3416    0     1
-## 5   0.1222    0.3275    0     1
-## 6   0.0744    0.2625    0     1
+## 1   0.2283    0.4198    0     1
+## 2   0.1356    0.3424    0     1
+## 3   0.1604    0.3670    0     1
+## 4   0.1320    0.3385    0     1
+## 5   0.1215    0.3267    0     1
+## 6   0.0737    0.2612    0     1
 ```
 
 
