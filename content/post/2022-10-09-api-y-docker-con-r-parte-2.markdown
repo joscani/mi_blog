@@ -101,8 +101,7 @@ brms_model <- readRDS("brms_model.rds")
 
 
 #* @apiTitle brms predict Api
-#* @apiDescription Endpoints for working with mtcars dataset model
-
+#* @apiDescription Endpoints for working with brms model
 ## ---- filter-logger
 #* Log some information about the incoming request
 #* @filter logger
