@@ -1,7 +1,7 @@
 ---
 title: Api y docker con R. parte 2
-author: ''
-date: '2022-10-12'
+author: jlcr
+date: '2022-10-30'
 categories:
   - docker
   - R
