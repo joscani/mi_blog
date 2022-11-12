@@ -1,4 +1,4 @@
-baseURL = "https://muestrear-no-es-pecado.netlify.app/"
+baseURL = "https://muestrear-no-es-pecado-old.netlify.app/"
 languageCode = "es"
 title = "Muestrear no es pecado"
 #theme = "hugo-future-imperfect-slim"
